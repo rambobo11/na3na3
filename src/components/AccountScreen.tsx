@@ -85,10 +85,10 @@ export function AccountScreen() {
     <div className="app-screen mx-auto flex max-w-md flex-col">
       <header className="mb-8">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--fg)]">
-          Sync
+          Login
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Same account on Mac and phone
+          Enter your email to sync Mac and iPhone
         </p>
       </header>
 

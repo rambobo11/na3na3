@@ -67,9 +67,9 @@ export function HomeScreen() {
         {configured && !user ? (
           <Link
             href="/account"
-            className="shrink-0 text-sm text-[var(--accent)]"
+            className="shrink-0 rounded-full bg-[var(--accent)] px-4 py-2 text-sm font-medium text-[var(--accent-fg)]"
           >
-            Sync
+            Login
           </Link>
         ) : configured && user && syncStatus === "synced" ? (
           <span className="shrink-0 text-xs text-[var(--muted)]">synced</span>
@@ -77,13 +77,14 @@ export function HomeScreen() {
       </header>
 
       {configured && !user ? (
-        <p className="mt-3 text-sm text-[var(--muted)]">
-          This device is local-only. Open{" "}
-          <Link href="/account" className="text-[var(--fg)] underline">
-            Sync
-          </Link>{" "}
-          and enter the email code to pull Mac data.
-        </p>
+        <Link
+          href="/account"
+          className="mt-4 block rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)]"
+        >
+          Put your email in{" "}
+          <span className="font-medium text-[var(--fg)]">Login</span> (bottom
+          tab) to sync with Mac.
+        </Link>
       ) : null}
 
       <main className="flex flex-1 flex-col items-center justify-center gap-10">
