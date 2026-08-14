@@ -93,18 +93,23 @@ export function AccountScreen() {
       </header>
 
       {!configured ? (
-        <div className="space-y-3 text-sm leading-relaxed text-[var(--muted)]">
-          <p>Sync is not configured yet.</p>
-          <ol className="list-decimal space-y-2 pl-5">
-            <li>Create a free project on supabase.com</li>
-            <li>
-              Run <code className="text-[var(--fg)]">supabase/schema.sql</code>{" "}
-              in the SQL Editor
-            </li>
-            <li>
-              Copy URL + anon key into Vercel env vars
-            </li>
-          </ol>
+        <div className="space-y-4 text-sm leading-relaxed text-[var(--muted)]">
+          <p className="text-[var(--fg)]">
+            Login is unavailable: Supabase keys are missing on Vercel.
+          </p>
+          <p>
+            In Vercel → Project → Settings → Environment Variables, add both
+            for <span className="text-[var(--fg)]">Production</span>, then
+            Redeploy:
+          </p>
+          <ul className="list-disc space-y-2 pl-5 font-mono text-xs text-[var(--fg)]">
+            <li>NEXT_PUBLIC_SUPABASE_URL</li>
+            <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
+          </ul>
+          <p>
+            After redeploy, reopen the app and you will see the email field
+            here.
+          </p>
         </div>
       ) : !ready ? (
         <p className="text-sm text-[var(--muted)]">Loading…</p>
