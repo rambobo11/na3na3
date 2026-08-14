@@ -1,14 +1,17 @@
 "use client";
 
 import { useCallback, useRef } from "react";
+import Link from "next/link";
 import { formatAvg } from "@/lib/dates";
 import { haptic } from "@/lib/haptics";
+import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 
 const LONG_PRESS_MS = 450;
 
 export function HomeScreen() {
-  const { ready, entries, today, avg7, add, undo } = useEntries();
+  const { configured, user } = useAuth();
+  const { ready, entries, today, avg7, add, undo, syncStatus } = useEntries();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longFiredRef = useRef(false);
 
@@ -57,11 +60,31 @@ export function HomeScreen() {
 
   return (
     <div className="app-screen relative flex flex-col">
-      <header className="flex items-baseline justify-between">
+      <header className="flex items-baseline justify-between gap-3">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--fg)]">
           Na3Na3
         </h1>
+        {configured && !user ? (
+          <Link
+            href="/account"
+            className="shrink-0 text-sm text-[var(--accent)]"
+          >
+            Sync
+          </Link>
+        ) : configured && user && syncStatus === "synced" ? (
+          <span className="shrink-0 text-xs text-[var(--muted)]">synced</span>
+        ) : null}
       </header>
+
+      {configured && !user ? (
+        <p className="mt-3 text-sm text-[var(--muted)]">
+          This device is local-only. Open{" "}
+          <Link href="/account" className="text-[var(--fg)] underline">
+            Sync
+          </Link>{" "}
+          and enter the email code to pull Mac data.
+        </p>
+      ) : null}
 
       <main className="flex flex-1 flex-col items-center justify-center gap-10">
         <div className="flex flex-col items-center gap-2">

@@ -19,6 +19,10 @@ type AuthContextValue = {
   session: Session | null;
   user: User | null;
   signInWithEmail: (email: string) => Promise<{ error: string | null }>;
+  verifyEmailOtp: (
+    email: string,
+    token: string,
+  ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
 
@@ -64,7 +68,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const redirectTo = `${window.location.origin}/auth/callback`;
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: redirectTo },
+      options: {
+        emailRedirectTo: redirectTo,
+        shouldCreateUser: true,
+      },
+    });
+    return { error: error?.message ?? null };
+  }, []);
+
+  /** 6-digit email code — works inside iPhone home-screen app (no redirect). */
+  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return { error: "Supabase is not configured." };
+
+    const { error } = await supabase.auth.verifyOtp({
+      email: email.trim(),
+      token: token.trim(),
+      type: "email",
     });
     return { error: error?.message ?? null };
   }, []);
@@ -83,9 +103,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session,
       user: session?.user ?? null,
       signInWithEmail,
+      verifyEmailOtp,
       signOut,
     }),
-    [configured, ready, session, signInWithEmail, signOut],
+    [configured, ready, session, signInWithEmail, verifyEmailOtp, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

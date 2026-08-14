@@ -3,6 +3,9 @@ export function friendlyAuthError(raw: string | null | undefined): string {
   if (!raw) return "Something went wrong. Try again.";
   const m = raw.toLowerCase();
 
+  if (m.includes("otp") || m.includes("token") || m.includes("code")) {
+    return "Invalid or expired code. Request a new one.";
+  }
   if (m.includes("rate") || m.includes("security")) {
     return "Too many attempts. Wait a bit and try again.";
   }

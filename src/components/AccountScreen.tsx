@@ -8,21 +8,30 @@ import { useEntries } from "@/lib/use-entries";
 
 export function AccountScreen() {
   const searchParams = useSearchParams();
-  const { configured, ready, user, signInWithEmail, signOut } = useAuth();
+  const {
+    configured,
+    ready,
+    user,
+    signInWithEmail,
+    verifyEmailOtp,
+    signOut,
+  } = useAuth();
   const { syncStatus, pendingCount, refreshFromCloud } = useEntries();
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [awaitingCode, setAwaitingCode] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("error") === "auth") {
-      setMessage("Sign-in link expired or invalid. Request a new one.");
+      setMessage("Sign-in link expired or invalid. Use the email code instead.");
+      setAwaitingCode(true);
     }
   }, [searchParams]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function sendCode() {
     setBusy(true);
     setMessage(null);
     const { error } = await signInWithEmail(email);
@@ -31,7 +40,28 @@ export function AccountScreen() {
       setMessage(friendlyAuthError(error));
       return;
     }
-    setMessage("Check your email for the login link.");
+    setAwaitingCode(true);
+    setMessage("Check your email for a 6-digit code (best on iPhone app).");
+  }
+
+  async function onSendCode(e: FormEvent) {
+    e.preventDefault();
+    await sendCode();
+  }
+
+  async function onVerifyCode(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setMessage(null);
+    const { error } = await verifyEmailOtp(email, code);
+    setBusy(false);
+    if (error) {
+      setMessage(friendlyAuthError(error));
+      return;
+    }
+    setCode("");
+    setAwaitingCode(false);
+    setMessage(null);
   }
 
   async function onSyncNow() {
@@ -72,12 +102,7 @@ export function AccountScreen() {
               in the SQL Editor
             </li>
             <li>
-              Copy URL + anon key into{" "}
-              <code className="text-[var(--fg)]">.env.local</code>
-            </li>
-            <li>
-              Auth → URL config: add your site URL and{" "}
-              <code className="text-[var(--fg)]">/auth/callback</code>
+              Copy URL + anon key into Vercel env vars
             </li>
           </ol>
         </div>
@@ -115,8 +140,64 @@ export function AccountScreen() {
             </button>
           </div>
         </div>
+      ) : awaitingCode ? (
+        <form onSubmit={onVerifyCode} className="space-y-4">
+          <p className="text-sm text-[var(--muted)]">
+            Code sent to <span className="text-[var(--fg)]">{email}</span>
+          </p>
+          <label className="block">
+            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+              6-digit code
+            </span>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              pattern="[0-9]{6}"
+              maxLength={8}
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\s/g, ""))}
+              className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-center text-2xl tracking-[0.35em] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+              placeholder="000000"
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={busy || code.trim().length < 6}
+            className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-[var(--accent-fg)] disabled:opacity-60"
+          >
+            {busy ? "Checking…" : "Confirm code"}
+          </button>
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void sendCode()}
+            className="w-full rounded-full px-5 py-3 text-sm text-[var(--muted)]"
+          >
+            Resend code
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setAwaitingCode(false);
+              setCode("");
+              setMessage(null);
+            }}
+            className="w-full rounded-full px-5 py-2 text-sm text-[var(--muted)]"
+          >
+            Change email
+          </button>
+          {message ? (
+            <p className="text-sm text-[var(--muted)]">{message}</p>
+          ) : null}
+        </form>
       ) : (
-        <form onSubmit={onSubmit} className="space-y-4">
+        <form onSubmit={onSendCode} className="space-y-4">
+          <p className="text-sm leading-relaxed text-[var(--muted)]">
+            On iPhone, enter the email code in this app — don’t rely on the
+            magic link (Safari and the home-screen app don’t share login).
+          </p>
           <label className="block">
             <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
               Email
@@ -136,15 +217,11 @@ export function AccountScreen() {
             disabled={busy}
             className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-[var(--accent-fg)] disabled:opacity-60"
           >
-            {busy ? "Sending…" : "Send magic link"}
+            {busy ? "Sending…" : "Send code"}
           </button>
           {message ? (
             <p className="text-sm text-[var(--muted)]">{message}</p>
-          ) : (
-            <p className="text-sm text-[var(--muted)]">
-              No password. Open the link on each device once.
-            </p>
-          )}
+          ) : null}
         </form>
       )}
     </div>
