@@ -16,8 +16,10 @@ import {
   clearLocalData,
   countToday,
   dailyTotals,
+  loadDeletedIds,
   loadOwnerId,
   loadEntries,
+  rememberDeletedId,
   removeLastEntry,
   saveOwnerId,
   saveEntries,
@@ -35,7 +37,7 @@ import {
   deleteRemoteEntry,
   fetchRemoteEntries,
   insertRemoteEntries,
-  mergeLocalIntoRemote,
+  seedLocalIntoRemote,
 } from "@/lib/supabase/sync";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/use-auth";
@@ -58,6 +60,14 @@ type EntriesContextValue = {
 
 const EntriesContext = createContext<EntriesContextValue | null>(null);
 
+function errorMessage(e: unknown): string {
+  if (e && typeof e === "object" && "message" in e) {
+    return String((e as { message: string }).message);
+  }
+  if (e instanceof Error) return e.message;
+  return "Sync failed";
+}
+
 export function EntriesProvider({ children }: { children: ReactNode }) {
   const { ready: authReady, user } = useAuth();
   const [entries, setEntries] = useState<Entry[]>([]);
@@ -70,8 +80,9 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   entriesRef.current = entries;
   const queueRef = useRef(queue);
   queueRef.current = queue;
-  const flushingRef = useRef(false);
+  const flushChainRef = useRef(Promise.resolve());
   const prevUserIdRef = useRef<string | null>(null);
+  const seededRef = useRef(false);
 
   const userId = user?.id ?? null;
 
@@ -92,34 +103,47 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   }, [queue, ready]);
 
   const flushQueue = useCallback(async (uid: string): Promise<boolean> => {
-    if (flushingRef.current) return false;
-    flushingRef.current = true;
-    setSyncStatus("syncing");
-
-    try {
-      let ops = queueRef.current;
-      while (ops.length > 0) {
-        const [head, ...rest] = ops;
-        if (head.type === "insert") {
-          await insertRemoteEntries(uid, [head.entry]);
-        } else {
-          await deleteRemoteEntry(head.id);
+    let ok = true;
+    const run = async () => {
+      setSyncStatus("syncing");
+      try {
+        let ops = queueRef.current;
+        while (ops.length > 0) {
+          const [head, ...rest] = ops;
+          if (head.type === "insert") {
+            await insertRemoteEntries(uid, [head.entry]);
+          } else {
+            await deleteRemoteEntry(head.id);
+          }
+          ops = rest;
+          queueRef.current = ops;
+          setQueue(ops);
+          saveQueue(ops);
         }
-        ops = rest;
-        queueRef.current = ops;
-        setQueue(ops);
-        saveQueue(ops);
+        setLastError(null);
+        setSyncStatus("synced");
+        ok = true;
+      } catch (e) {
+        setLastError(errorMessage(e));
+        setSyncStatus("error");
+        ok = false;
       }
-      setLastError(null);
-      setSyncStatus("synced");
-      return true;
-    } catch (e) {
-      setLastError(e instanceof Error ? e.message : "Sync failed");
-      setSyncStatus("error");
-      return false;
-    } finally {
-      flushingRef.current = false;
-    }
+    };
+
+    const next = flushChainRef.current.then(run, run);
+    flushChainRef.current = next.then(
+      () => undefined,
+      () => undefined,
+    );
+    await next;
+    return ok;
+  }, []);
+
+  const pullFromCloud = useCallback(async (uid: string) => {
+    const remote = await fetchRemoteEntries(uid);
+    const withPending = applyPendingToEntries(remote, queueRef.current);
+    setEntries(withPending);
+    saveOwnerId(uid);
   }, []);
 
   const syncWithCloud = useCallback(
@@ -130,9 +154,8 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
           clearQueue();
           queueRef.current = [];
           setQueue([]);
-          const remote = await fetchRemoteEntries(uid);
-          setEntries(remote);
-          saveOwnerId(uid);
+          seededRef.current = true;
+          await pullFromCloud(uid);
           setLastError(null);
           setSyncStatus("synced");
           return;
@@ -140,10 +163,24 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
 
         await flushQueue(uid);
 
-        const merged = await mergeLocalIntoRemote(uid, entriesRef.current);
-        const withPending = applyPendingToEntries(merged, queueRef.current);
-        setEntries(withPending);
-        saveOwnerId(uid);
+        // First sync for this session: seed local-only rows once if cloud empty.
+        if (!seededRef.current) {
+          const remote = await fetchRemoteEntries(uid);
+          if (remote.length === 0 && entriesRef.current.length > 0) {
+            await seedLocalIntoRemote(
+              uid,
+              entriesRef.current,
+              loadDeletedIds(),
+            );
+          } else if (remote.length === 0) {
+            // nothing to seed
+          } else {
+            // Cloud already has data — do not re-upload local orphans (would undo remote deletes).
+          }
+          seededRef.current = true;
+        }
+
+        await pullFromCloud(uid);
         if (queueRef.current.length > 0) {
           setSyncStatus("error");
         } else {
@@ -151,17 +188,11 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
           setSyncStatus("synced");
         }
       } catch (e) {
-        const msg =
-          e && typeof e === "object" && "message" in e
-            ? String((e as { message: string }).message)
-            : e instanceof Error
-              ? e.message
-              : "Sync failed";
-        setLastError(msg);
+        setLastError(errorMessage(e));
         setSyncStatus("error");
       }
     },
-    [flushQueue],
+    [flushQueue, pullFromCloud],
   );
 
   const refreshFromCloud = useCallback(async () => {
@@ -169,7 +200,6 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
     await syncWithCloud(userId);
   }, [userId, syncWithCloud]);
 
-  // Sign-out / account switch: wipe local privacy-sensitive cache.
   useEffect(() => {
     if (!authReady || !ready) return;
 
@@ -180,6 +210,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       clearLocalData();
       setEntries([]);
       setQueue([]);
+      seededRef.current = false;
       setSyncStatus("local");
       return;
     }
@@ -188,6 +219,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       clearLocalData();
       setEntries([]);
       setQueue([]);
+      seededRef.current = false;
       void syncWithCloud(userId, { replaceLocal: true });
       return;
     }
@@ -204,6 +236,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       const owner = loadOwnerId();
       if (cancelled) return;
       if (owner && owner !== userId) {
+        seededRef.current = false;
         await syncWithCloud(userId, { replaceLocal: true });
       } else {
         await syncWithCloud(userId);
@@ -224,13 +257,17 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
         },
         async () => {
           try {
-            const remote = await fetchRemoteEntries(userId);
             if (cancelled) return;
-            const next = applyPendingToEntries(remote, queueRef.current);
-            setEntries(next);
-            if (queueRef.current.length === 0) setSyncStatus("synced");
-          } catch {
-            if (!cancelled) setSyncStatus("error");
+            await pullFromCloud(userId);
+            if (queueRef.current.length === 0) {
+              setLastError(null);
+              setSyncStatus("synced");
+            }
+          } catch (e) {
+            if (!cancelled) {
+              setLastError(errorMessage(e));
+              setSyncStatus("error");
+            }
           }
         },
       )
@@ -240,15 +277,16 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       cancelled = true;
       void supabase.removeChannel(channel);
     };
-  }, [authReady, ready, userId, syncWithCloud]);
+  }, [authReady, ready, userId, syncWithCloud, pullFromCloud]);
 
-  // Retry queue when back online / tab focused.
   useEffect(() => {
     if (!userId) return;
 
     const retry = () => {
       if (queueRef.current.length === 0) return;
-      void flushQueue(userId);
+      void flushQueue(userId).then((ok) => {
+        if (ok) void pullFromCloud(userId);
+      });
     };
 
     window.addEventListener("online", retry);
@@ -257,7 +295,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", retry);
       window.removeEventListener("focus", retry);
     };
-  }, [userId, flushQueue]);
+  }, [userId, flushQueue, pullFromCloud]);
 
   const add = useCallback(
     (count = 1) => {
@@ -283,11 +321,14 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
 
     if (!userId) return;
 
+    rememberDeletedId(removed.id);
     const ops = enqueueDelete(queueRef.current, removed.id);
     queueRef.current = ops;
     setQueue(ops);
-    void flushQueue(userId);
-  }, [userId, flushQueue]);
+    void flushQueue(userId).then((ok) => {
+      if (ok) void pullFromCloud(userId);
+    });
+  }, [userId, flushQueue, pullFromCloud]);
 
   const today = useMemo(() => countToday(entries), [entries]);
   const avg7 = useMemo(() => average(dailyTotals(entries, 7)), [entries]);

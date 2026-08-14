@@ -12,6 +12,7 @@ const STORAGE_KEY = "na3na3:entries";
 const OWNER_KEY = "na3na3:owner";
 const LEGACY_KEY = "na3na3:smokes";
 const QUEUE_KEY = "na3na3:queue";
+const DELETED_KEY = "na3na3:deleted";
 
 function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -74,6 +75,30 @@ export function clearLocalData(): void {
   localStorage.removeItem(OWNER_KEY);
   localStorage.removeItem(LEGACY_KEY);
   localStorage.removeItem(QUEUE_KEY);
+  localStorage.removeItem(DELETED_KEY);
+}
+
+export function loadDeletedIds(): Set<string> {
+  if (typeof window === "undefined") return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_KEY);
+    if (!raw) return new Set();
+    const parsed = JSON.parse(raw) as string[];
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id) => typeof id === "string"));
+  } catch {
+    return new Set();
+  }
+}
+
+export function rememberDeletedId(id: string): void {
+  if (typeof window === "undefined") return;
+  const ids = loadDeletedIds();
+  ids.add(id);
+  // Cap size to avoid unbounded growth
+  const list = [...ids];
+  const trimmed = list.length > 500 ? list.slice(list.length - 500) : list;
+  localStorage.setItem(DELETED_KEY, JSON.stringify(trimmed));
 }
 
 export function addEntries(

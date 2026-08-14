@@ -51,14 +51,20 @@ export async function deleteRemoteEntry(id: string): Promise<void> {
   if (error) throw error;
 }
 
-/** Upload local-only rows (excluding pending deletes), then return remote list. */
-export async function mergeLocalIntoRemote(
+/**
+ * One-time seed: upload local rows missing remotely (never re-upload tombstones).
+ * Used only when remote is empty / first login.
+ */
+export async function seedLocalIntoRemote(
   userId: string,
   local: Entry[],
+  deletedIds: Set<string>,
 ): Promise<Entry[]> {
   const remote = await fetchRemoteEntries(userId);
   const remoteIds = new Set(remote.map((s) => s.id));
-  const missing = local.filter((s) => !remoteIds.has(s.id));
+  const missing = local.filter(
+    (s) => !remoteIds.has(s.id) && !deletedIds.has(s.id),
+  );
   if (missing.length > 0) {
     await insertRemoteEntries(userId, missing);
   }
