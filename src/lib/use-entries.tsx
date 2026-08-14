@@ -282,18 +282,30 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!userId) return;
 
-    const retry = () => {
-      if (queueRef.current.length === 0) return;
-      void flushQueue(userId).then((ok) => {
-        if (ok) void pullFromCloud(userId);
-      });
+    const refresh = () => {
+      void flushQueue(userId).then(() => pullFromCloud(userId));
     };
 
-    window.addEventListener("online", retry);
-    window.addEventListener("focus", retry);
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    window.addEventListener("online", refresh);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // Light poll while the app is open — catches DELETE when Realtime lags.
+    const interval = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        void pullFromCloud(userId);
+      }
+    }, 4000);
+
     return () => {
-      window.removeEventListener("online", retry);
-      window.removeEventListener("focus", retry);
+      window.removeEventListener("online", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.clearInterval(interval);
     };
   }, [userId, flushQueue, pullFromCloud]);
 

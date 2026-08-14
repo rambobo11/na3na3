@@ -14,6 +14,9 @@ create index if not exists entries_user_logged_at_idx
 
 alter table public.entries enable row level security;
 
+-- Needed so Realtime DELETE events include user_id (filter works on other devices).
+alter table public.entries replica identity full;
+
 -- Authenticated clients only; anon has no grants beyond what Supabase defaults allow with RLS.
 grant select, insert, delete on table public.entries to authenticated;
 grant all on table public.entries to service_role;
