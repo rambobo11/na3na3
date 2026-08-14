@@ -2,15 +2,20 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-
-const links = [
-  { href: "/", label: "Home" },
-  { href: "/stats", label: "Stats" },
-  { href: "/account", label: "Sync" },
-] as const;
+import { useAuth } from "@/lib/use-auth";
 
 export function BottomNav() {
   const pathname = usePathname();
+  const { user, configured } = useAuth();
+
+  const links = [
+    { href: "/", label: "Home" },
+    { href: "/stats", label: "Stats" },
+    {
+      href: "/account",
+      label: configured && !user ? "Login" : "Sync",
+    },
+  ] as const;
 
   return (
     <nav
