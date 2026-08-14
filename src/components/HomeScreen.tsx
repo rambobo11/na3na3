@@ -56,7 +56,7 @@ export function HomeScreen() {
   }, [undo]);
 
   return (
-    <div className="relative flex min-h-[100dvh] flex-col px-6 pb-24 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="app-screen relative flex flex-col">
       <header className="flex items-baseline justify-between">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--fg)]">
           Na3Na3
@@ -66,7 +66,7 @@ export function HomeScreen() {
       <main className="flex flex-1 flex-col items-center justify-center gap-10">
         <div className="flex flex-col items-center gap-2">
           <p
-            className="font-[family-name:var(--font-display)] text-[7.5rem] leading-none font-semibold tabular-nums tracking-tight text-[var(--fg)] sm:text-[8.5rem]"
+            className="font-[family-name:var(--font-display)] text-[clamp(4.5rem,22vw,8.5rem)] leading-none font-semibold tabular-nums tracking-tight text-[var(--fg)]"
             aria-live="polite"
             aria-label={`Today: ${ready ? today : "…"}`}
           >
@@ -85,7 +85,7 @@ export function HomeScreen() {
           onPointerLeave={onPlusCancel}
           onPointerCancel={onPlusCancel}
           onContextMenu={(e) => e.preventDefault()}
-          className="select-none touch-manipulation active:scale-[0.97] transition-transform duration-100 flex h-36 w-36 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_12px_40px_var(--accent-glow)] sm:h-40 sm:w-40"
+          className="select-none touch-manipulation active:scale-[0.97] transition-transform duration-100 flex h-40 w-40 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_12px_40px_var(--accent-glow)]"
         >
           <span className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none">
             +1
@@ -97,7 +97,7 @@ export function HomeScreen() {
           aria-label="Undo last"
           onClick={onMinus}
           disabled={!ready || entries.length === 0}
-          className="select-none touch-manipulation rounded-full border border-[var(--border)] px-8 py-3 text-base text-[var(--muted)] transition-colors enabled:hover:border-[var(--fg-soft)] enabled:hover:text-[var(--fg)] disabled:opacity-30"
+          className="select-none touch-manipulation min-h-12 rounded-full border border-[var(--border)] px-10 py-3.5 text-base text-[var(--muted)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"
         >
           −1
         </button>

@@ -53,16 +53,37 @@
 
 html {
   color-scheme: light dark;
+  height: 100%;
 }
 
 body {
   background: var(--bg-grad);
-  background-attachment: fixed;
+  background-color: var(--bg);
   color: var(--fg);
   font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
   min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  overscroll-behavior: none;
+  /* Avoid iOS rubber-band showing white edges in standalone */
+  overflow-x: hidden;
+}
+
+button,
+a {
+  -webkit-touch-callout: none;
+  user-select: none;
 }
 
 button {
   cursor: pointer;
+}
+
+/* App shell: keep content above home indicator + bottom nav */
+.app-screen {
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
+  padding-bottom: calc(5.5rem + env(safe-area-inset-bottom));
+  padding-left: max(1.5rem, env(safe-area-inset-left));
+  padding-right: max(1.5rem, env(safe-area-inset-right));
+  padding-top: max(1.5rem, env(safe-area-inset-top));
 }

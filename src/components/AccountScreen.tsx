@@ -52,7 +52,7 @@ export function AccountScreen() {
           : "local only";
 
   return (
-    <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-6 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))]">
+    <div className="app-screen mx-auto flex max-w-md flex-col">
       <header className="mb-8">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--fg)]">
           Sync
