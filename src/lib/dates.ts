@@ -99,3 +99,28 @@ export function formatAvg(n: number): string {
   if (!Number.isFinite(n) || n === 0) return "0";
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
+
+const timeFmt = new Intl.DateTimeFormat("fr-FR", {
+  timeZone: TZ,
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false,
+});
+
+const hourFmt = new Intl.DateTimeFormat("en-GB", {
+  timeZone: TZ,
+  hour: "numeric",
+  hour12: false,
+});
+
+/** HH:mm in Europe/Paris. */
+export function formatTime(iso: string): string {
+  return timeFmt.format(new Date(iso));
+}
+
+/** Hour 0–23 in Europe/Paris. */
+export function parisHour(iso: string): number {
+  const raw = hourFmt.format(new Date(iso));
+  const h = Number.parseInt(raw, 10);
+  return Number.isFinite(h) ? h % 24 : 0;
+}

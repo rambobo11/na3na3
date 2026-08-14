@@ -2,10 +2,12 @@
 
 import { useMemo, useState } from "react";
 import { DailyChart, type ChartBar } from "@/components/DailyChart";
+import { HourlyChart } from "@/components/HourlyChart";
 import {
   formatAvg,
   formatMonthDay,
   formatShortDay,
+  formatTime,
   formatWeekRange,
   todayKey,
 } from "@/lib/dates";
@@ -14,6 +16,8 @@ import {
   countToday,
   countYesterday,
   dailyTotals,
+  entriesForDay,
+  hourlyTotals,
   lowestHighest,
   movingAverage7,
   sumTotals,
@@ -99,6 +103,28 @@ export function StatsScreen() {
     [ready, entries],
   );
 
+  const detailDay = useMemo(() => {
+    if (!weekly && selectedId) return selectedId;
+    return today;
+  }, [weekly, selectedId, today]);
+
+  const dayEntries = useMemo(
+    () => (ready ? entriesForDay(entries, detailDay) : []),
+    [ready, entries, detailDay],
+  );
+  const hours = useMemo(
+    () => (ready ? hourlyTotals(entries, detailDay) : []),
+    [ready, entries, detailDay],
+  );
+  const peakHour = useMemo(() => {
+    if (hours.length === 0) return null;
+    let best = hours[0];
+    for (const h of hours) {
+      if (h.count > best.count) best = h;
+    }
+    return best.count > 0 ? best : null;
+  }, [hours]);
+
   const selectedDetail = useMemo(() => {
     if (!selectedId) return null;
     if (weekly) {
@@ -160,11 +186,11 @@ export function StatsScreen() {
             ? selectedDetail
             : weekly
               ? "Bars = weekly · tap a bar"
-              : "Bars = daily · line = 7-day avg · tap a bar"}
+              : "Bars = daily · tap a day for times"}
         </p>
       </div>
 
-      <dl className="grid grid-cols-2 gap-x-6 gap-y-6">
+      <dl className="mb-10 grid grid-cols-2 gap-x-6 gap-y-6">
         <Stat label="Today" value={ready ? String(todayCount) : "—"} />
         <Stat
           label="Yesterday"
@@ -186,6 +212,54 @@ export function StatsScreen() {
           hint={ready && highest ? formatShortDay(highest.date) : undefined}
         />
       </dl>
+
+      <section className="mb-4">
+        <div className="mb-3 flex items-baseline justify-between gap-3">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
+            By hour
+          </h2>
+          <p className="text-xs text-[var(--muted)]">
+            {detailDay === today ? "Today" : formatShortDay(detailDay)}
+          </p>
+        </div>
+
+        {ready ? (
+          <HourlyChart hours={hours} />
+        ) : (
+          <div className="h-24 animate-pulse rounded-lg bg-[var(--surface)]" />
+        )}
+
+        <p className="mt-2 text-xs text-[var(--muted)]">
+          {peakHour
+            ? `Peak ${String(peakHour.hour).padStart(2, "0")}:00 · ${peakHour.count}`
+            : "No entries this day"}
+        </p>
+      </section>
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wider text-[var(--muted)]">
+          Times
+        </h2>
+        {ready && dayEntries.length > 0 ? (
+          <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+            {[...dayEntries].reverse().map((e, i) => (
+              <li
+                key={e.id}
+                className="flex items-center justify-between text-sm text-[var(--fg)]"
+              >
+                <span className="tabular-nums text-[var(--muted)]">
+                  #{dayEntries.length - i}
+                </span>
+                <span className="font-[family-name:var(--font-display)] text-base tabular-nums">
+                  {formatTime(e.loggedAt)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-[var(--muted)]">No times yet</p>
+        )}
+      </section>
     </div>
   );
 }

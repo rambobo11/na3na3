@@ -2,6 +2,7 @@ import type { DayTotal, Entry, WeekTotal } from "./types";
 import {
   dayKey,
   lastNDayKeys,
+  parisHour,
   todayKey,
   weekEndKey,
   weekStartKey,
@@ -106,10 +107,13 @@ export function addEntries(
   count: number,
   at = new Date(),
 ): Entry[] {
-  const stamped = at.toISOString();
   const next = [...entries];
   for (let i = 0; i < count; i++) {
-    next.push({ id: newId(), loggedAt: stamped });
+    // Slight offset so +5 catch-up entries have distinct times.
+    next.push({
+      id: newId(),
+      loggedAt: new Date(at.getTime() + i * 1000).toISOString(),
+    });
   }
   return next;
 }
@@ -236,4 +240,26 @@ export function weeklyTotals(entries: Entry[], days: number): WeekTotal[] {
 /** Whether a calendar day falls in a week bar. */
 export function weekContainsDay(week: WeekTotal, day: string): boolean {
   return day >= week.start && day <= week.end;
+}
+
+export type HourTotal = {
+  hour: number; // 0–23
+  count: number;
+};
+
+/** Entries for a Paris calendar day, oldest → newest. */
+export function entriesForDay(entries: Entry[], key: string): Entry[] {
+  return entries
+    .filter((e) => dayKey(e.loggedAt) === key)
+    .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
+}
+
+/** Counts per hour (0–23) for a Paris calendar day. */
+export function hourlyTotals(entries: Entry[], key: string): HourTotal[] {
+  const counts = Array.from({ length: 24 }, () => 0);
+  for (const e of entries) {
+    if (dayKey(e.loggedAt) !== key) continue;
+    counts[parisHour(e.loggedAt)] += 1;
+  }
+  return counts.map((count, hour) => ({ hour, count }));
 }
