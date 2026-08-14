@@ -1,8 +1,17 @@
-import type { DayTotal, Entry } from "./types";
-import { dayKey, lastNDayKeys, todayKey } from "./dates";
+import type { DayTotal, Entry, WeekTotal } from "./types";
+import {
+  dayKey,
+  lastNDayKeys,
+  todayKey,
+  weekEndKey,
+  weekStartKey,
+  yesterdayKey,
+} from "./dates";
 
 const STORAGE_KEY = "na3na3:entries";
 const OWNER_KEY = "na3na3:owner";
+const LEGACY_KEY = "na3na3:smokes";
+const QUEUE_KEY = "na3na3:queue";
 
 function newId(): string {
   if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
@@ -16,20 +25,22 @@ export function loadEntries(): Entry[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) {
-      // migrate old local key if present
-      const legacy = localStorage.getItem("na3na3:smokes");
+      const legacy = localStorage.getItem(LEGACY_KEY);
       if (!legacy) return [];
       const parsed = JSON.parse(legacy) as Array<{
         id: string;
         smokedAt?: string;
         loggedAt?: string;
       }>;
-      return parsed
+      const migrated = parsed
         .filter((s) => s && typeof s.id === "string")
         .map((s) => ({
           id: s.id,
           loggedAt: s.loggedAt ?? s.smokedAt ?? new Date().toISOString(),
         }));
+      saveEntries(migrated);
+      localStorage.removeItem(LEGACY_KEY);
+      return migrated;
     }
     const parsed = JSON.parse(raw) as Entry[];
     if (!Array.isArray(parsed)) return [];
@@ -54,6 +65,15 @@ export function saveOwnerId(userId: string | null): void {
   if (typeof window === "undefined") return;
   if (!userId) localStorage.removeItem(OWNER_KEY);
   else localStorage.setItem(OWNER_KEY, userId);
+}
+
+/** Wipe local cache (sign-out / account switch). */
+export function clearLocalData(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(OWNER_KEY);
+  localStorage.removeItem(LEGACY_KEY);
+  localStorage.removeItem(QUEUE_KEY);
 }
 
 export function addEntries(
@@ -92,12 +112,19 @@ export function removeLastEntry(entries: Entry[]): {
 }
 
 export function countToday(entries: Entry[]): number {
-  const today = todayKey();
+  return countOnDay(entries, todayKey());
+}
+
+export function countOnDay(entries: Entry[], key: string): number {
   let n = 0;
   for (const s of entries) {
-    if (dayKey(s.loggedAt) === today) n++;
+    if (dayKey(s.loggedAt) === key) n++;
   }
   return n;
+}
+
+export function countYesterday(entries: Entry[]): number {
+  return countOnDay(entries, yesterdayKey());
 }
 
 export function dailyTotals(entries: Entry[], days: number): DayTotal[] {
@@ -110,10 +137,13 @@ export function dailyTotals(entries: Entry[], days: number): DayTotal[] {
   return keys.map((date) => ({ date, count: map.get(date) ?? 0 }));
 }
 
+export function sumTotals(totals: DayTotal[]): number {
+  return totals.reduce((a, t) => a + t.count, 0);
+}
+
 export function average(totals: DayTotal[]): number {
   if (totals.length === 0) return 0;
-  const sum = totals.reduce((a, t) => a + t.count, 0);
-  return sum / totals.length;
+  return sumTotals(totals) / totals.length;
 }
 
 /** Trailing 7-day moving average aligned to each day in `totals`. */
@@ -132,16 +162,53 @@ export function movingAverage7(
   });
 }
 
-export function bestWorst(totals: DayTotal[]): {
-  best: DayTotal | null;
-  worst: DayTotal | null;
+/** Min/max among days with activity (count > 0). */
+export function lowestHighest(totals: DayTotal[]): {
+  lowest: DayTotal | null;
+  highest: DayTotal | null;
 } {
-  if (totals.length === 0) return { best: null, worst: null };
-  let best = totals[0];
-  let worst = totals[0];
-  for (const t of totals) {
-    if (t.count < best.count) best = t;
-    if (t.count > worst.count) worst = t;
+  const active = totals.filter((t) => t.count > 0);
+  if (active.length === 0) return { lowest: null, highest: null };
+  let lowest = active[0];
+  let highest = active[0];
+  for (const t of active) {
+    if (t.count < lowest.count) lowest = t;
+    if (t.count > highest.count) highest = t;
   }
-  return { best, worst };
+  return { lowest, highest };
+}
+
+/**
+ * Aggregate last `days` into Monday–Sunday weeks (Paris).
+ * Partial first/last weeks are clipped to the requested window.
+ */
+export function weeklyTotals(entries: Entry[], days: number): WeekTotal[] {
+  const daily = dailyTotals(entries, days);
+  if (daily.length === 0) return [];
+
+  const first = daily[0].date;
+  const last = daily[daily.length - 1].date;
+  const byWeek = new Map<string, number>();
+
+  for (const d of daily) {
+    const start = weekStartKey(d.date);
+    byWeek.set(start, (byWeek.get(start) ?? 0) + d.count);
+  }
+
+  const starts = [...byWeek.keys()].sort();
+  return starts.map((start) => {
+    const naturalEnd = weekEndKey(start);
+    const end = naturalEnd > last ? last : naturalEnd;
+    const clippedStart = start < first ? first : start;
+    return {
+      start: clippedStart,
+      end,
+      count: byWeek.get(start) ?? 0,
+    };
+  });
+}
+
+/** Whether a calendar day falls in a week bar. */
+export function weekContainsDay(week: WeekTotal, day: string): boolean {
+  return day >= week.start && day <= week.end;
 }

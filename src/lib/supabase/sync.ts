@@ -31,7 +31,7 @@ export async function insertRemoteEntries(
 ): Promise<void> {
   if (entries.length === 0) return;
   const supabase = getSupabase();
-  if (!supabase) return;
+  if (!supabase) throw new Error("Supabase is not configured");
 
   const { error } = await supabase.from("entries").insert(
     entries.map((s) => ({
@@ -40,17 +40,18 @@ export async function insertRemoteEntries(
       user_id: userId,
     })),
   );
-  if (error) throw error;
+  // Idempotent flush: duplicate primary key means already synced
+  if (error && error.code !== "23505") throw error;
 }
 
 export async function deleteRemoteEntry(id: string): Promise<void> {
   const supabase = getSupabase();
-  if (!supabase) return;
+  if (!supabase) throw new Error("Supabase is not configured");
   const { error } = await supabase.from("entries").delete().eq("id", id);
   if (error) throw error;
 }
 
-/** Upload local-only rows, then return the merged remote list. */
+/** Upload local-only rows (excluding pending deletes), then return remote list. */
 export async function mergeLocalIntoRemote(
   userId: string,
   local: Entry[],

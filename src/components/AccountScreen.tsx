@@ -1,15 +1,25 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useSearchParams } from "next/navigation";
+import { friendlyAuthError } from "@/lib/auth-errors";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 
 export function AccountScreen() {
+  const searchParams = useSearchParams();
   const { configured, ready, user, signInWithEmail, signOut } = useAuth();
-  const { syncStatus, refreshFromCloud } = useEntries();
+  const { syncStatus, pendingCount, refreshFromCloud } = useEntries();
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("error") === "auth") {
+      setMessage("Sign-in link expired or invalid. Request a new one.");
+    }
+  }, [searchParams]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -18,11 +28,28 @@ export function AccountScreen() {
     const { error } = await signInWithEmail(email);
     setBusy(false);
     if (error) {
-      setMessage(error);
+      setMessage(friendlyAuthError(error));
       return;
     }
     setMessage("Check your email for the login link.");
   }
+
+  async function onSyncNow() {
+    setSyncing(true);
+    await refreshFromCloud();
+    setSyncing(false);
+  }
+
+  const statusLabel =
+    syncStatus === "synced"
+      ? "synced"
+      : syncStatus === "syncing" || syncing
+        ? "syncing…"
+        : syncStatus === "error"
+          ? pendingCount > 0
+            ? `pending (${pendingCount}) — tap retry`
+            : "sync error — tap retry"
+          : "local only";
 
   return (
     <div className="mx-auto flex min-h-[100dvh] max-w-md flex-col px-6 pb-28 pt-[max(1.5rem,env(safe-area-inset-top))]">
@@ -37,7 +64,7 @@ export function AccountScreen() {
 
       {!configured ? (
         <div className="space-y-3 text-sm leading-relaxed text-[var(--muted)]">
-          <p>Supabase is not configured yet.</p>
+          <p>Sync is not configured yet.</p>
           <ol className="list-decimal space-y-2 pl-5">
             <li>Create a free project on supabase.com</li>
             <li>
@@ -64,26 +91,20 @@ export function AccountScreen() {
             </p>
             <p className="mt-1 break-all text-[var(--fg)]">{user.email}</p>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              Status:{" "}
-              <span className="text-[var(--fg)]">
-                {syncStatus === "synced"
-                  ? "synced"
-                  : syncStatus === "syncing"
-                    ? "syncing…"
-                    : syncStatus === "error"
-                      ? "sync error"
-                      : "local only"}
-              </span>
+              Status: <span className="text-[var(--fg)]">{statusLabel}</span>
             </p>
           </div>
 
           <div className="flex flex-col gap-3">
             <button
               type="button"
-              onClick={() => void refreshFromCloud()}
-              className="rounded-full border border-[var(--border)] px-5 py-3 text-sm text-[var(--fg)]"
+              onClick={() => void onSyncNow()}
+              disabled={syncing || syncStatus === "syncing"}
+              className="rounded-full border border-[var(--border)] px-5 py-3 text-sm text-[var(--fg)] disabled:opacity-50"
             >
-              Sync now
+              {syncStatus === "error" || pendingCount > 0
+                ? "Retry sync"
+                : "Sync now"}
             </button>
             <button
               type="button"

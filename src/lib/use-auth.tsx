@@ -11,6 +11,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
+import { clearLocalData } from "@/lib/store";
 
 type AuthContextValue = {
   configured: boolean;
@@ -69,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    clearLocalData();
     const supabase = getSupabase();
     if (!supabase) return;
     await supabase.auth.signOut();

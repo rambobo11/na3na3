@@ -1,34 +1,41 @@
 "use client";
 
 import { useMemo } from "react";
-import type { DayTotal } from "@/lib/types";
-import { formatShortDay } from "@/lib/dates";
 
-type Props = {
-  totals: DayTotal[];
-  movingAvg?: number[];
+export type ChartBar = {
+  id: string;
+  count: number;
+  label: string;
+  current?: boolean;
 };
 
-export function DailyChart({ totals, movingAvg }: Props) {
+type Props = {
+  bars: ChartBar[];
+  movingAvg?: number[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+};
+
+export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
   const max = useMemo(() => {
-    const counts = totals.map((t) => t.count);
+    const counts = bars.map((t) => t.count);
     const ma = movingAvg ?? [];
     return Math.max(1, ...counts, ...ma.map((n) => Math.ceil(n)));
-  }, [totals, movingAvg]);
+  }, [bars, movingAvg]);
 
   const w = 320;
-  const h = 160;
+  const h = 168;
   const padL = 8;
   const padR = 8;
   const padT = 16;
   const padB = 28;
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
-  const gap =
-    totals.length > 180 ? 0.5 : totals.length > 60 ? 1 : totals.length > 14 ? 2 : 6;
+  const n = bars.length;
+  const gap = n > 40 ? 1 : n > 14 ? 2 : 6;
   const barW = Math.max(
-    0.75,
-    (innerW - gap * Math.max(0, totals.length - 1)) / totals.length,
+    1,
+    (innerW - gap * Math.max(0, n - 1)) / Math.max(1, n),
   );
 
   const barX = (i: number) => padL + i * (barW + gap);
@@ -44,30 +51,15 @@ export function DailyChart({ totals, movingAvg }: Props) {
     .join(" ");
 
   const labelEvery =
-    totals.length > 180 ? 60 : totals.length > 90 ? 30 : totals.length > 14 ? 7 : 1;
-
-  const labelFor = (date: string, i: number) => {
-    if (totals.length > 90) {
-      // Month tick for long ranges (show when month changes, or first/last)
-      const month = date.slice(5, 7);
-      const prev = i > 0 ? totals[i - 1].date.slice(5, 7) : null;
-      if (i === 0 || i === totals.length - 1 || month !== prev) {
-        return date.slice(5, 7);
-      }
-      return null;
-    }
-    if (totals.length > 14) return date.slice(8);
-    return formatShortDay(date).split(" ")[0];
-  };
+    n > 26 ? Math.ceil(n / 6) : n > 14 ? Math.ceil(n / 7) : 1;
 
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
-      className="h-auto w-full"
+      className="h-auto w-full touch-manipulation"
       role="img"
-      aria-label="Daily counts"
+      aria-label="Period counts"
     >
-      {/* baseline */}
       <line
         x1={padL}
         x2={w - padR}
@@ -77,10 +69,32 @@ export function DailyChart({ totals, movingAvg }: Props) {
         strokeWidth={1}
       />
 
-      {totals.map((t, i) => {
+      {bars.map((t, i) => {
         const height = Math.max(t.count > 0 ? 3 : 0, barH(t.count));
+        const selected = selectedId === t.id;
+        const showLabel =
+          i % labelEvery === 0 || i === n - 1 || t.current === true;
         return (
-          <g key={t.date}>
+          <g
+            key={t.id}
+            role="button"
+            tabIndex={0}
+            className="cursor-pointer"
+            onClick={() => onSelect(t.id)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onSelect(t.id);
+              }
+            }}
+          >
+            <rect
+              x={barX(i)}
+              y={padT}
+              width={barW}
+              height={innerH}
+              fill="transparent"
+            />
             <rect
               x={barX(i)}
               y={barY(t.count)}
@@ -88,33 +102,28 @@ export function DailyChart({ totals, movingAvg }: Props) {
               height={height}
               rx={Math.min(4, barW / 2)}
               fill="var(--accent)"
-              opacity={t.count === 0 ? 0.2 : 0.9}
+              opacity={
+                selected ? 1 : t.current ? 0.95 : t.count === 0 ? 0.2 : 0.75
+              }
+              stroke={selected || t.current ? "var(--fg)" : "none"}
+              strokeWidth={selected || t.current ? 1.25 : 0}
             />
-            {(() => {
-              const label =
-                totals.length > 90
-                  ? labelFor(t.date, i)
-                  : i % labelEvery === 0 || i === totals.length - 1
-                    ? labelFor(t.date, i)
-                    : null;
-              if (!label) return null;
-              return (
-                <text
-                  x={barX(i) + barW / 2}
-                  y={h - 8}
-                  textAnchor="middle"
-                  className="fill-[var(--muted)]"
-                  style={{ fontSize: totals.length > 60 ? 8 : 9 }}
-                >
-                  {label}
-                </text>
-              );
-            })()}
+            {showLabel ? (
+              <text
+                x={barX(i) + barW / 2}
+                y={h - 8}
+                textAnchor="middle"
+                className="fill-[var(--muted)] pointer-events-none"
+                style={{ fontSize: n > 20 ? 8 : 9 }}
+              >
+                {t.label}
+              </text>
+            ) : null}
           </g>
         );
       })}
 
-      {movingAvg && movingAvg.length === totals.length ? (
+      {movingAvg && movingAvg.length === bars.length ? (
         <polyline
           points={maPoints}
           fill="none"
@@ -123,6 +132,7 @@ export function DailyChart({ totals, movingAvg }: Props) {
           strokeLinecap="round"
           strokeLinejoin="round"
           opacity={0.55}
+          className="pointer-events-none"
         />
       ) : null}
     </svg>
