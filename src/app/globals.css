@@ -1,0 +1,68 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #f4f7f5;
+  --fg: #0f1a14;
+  --fg-soft: #2a3b32;
+  --muted: #6b7c72;
+  --border: #d5e0d9;
+  --surface: #e8efe9;
+  --accent: #1f8a5b;
+  --accent-fg: #f4fbf7;
+  --accent-glow: rgb(31 138 91 / 0.28);
+  --bg-grad: radial-gradient(
+      120% 80% at 50% -10%,
+      #d8efe4 0%,
+      transparent 55%
+    ),
+    radial-gradient(80% 60% at 100% 100%, #e4ebe6 0%, transparent 50%),
+    var(--bg);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1210;
+    --fg: #eef6f1;
+    --fg-soft: #c5d6cb;
+    --muted: #8aa093;
+    --border: #1e2c25;
+    --surface: #14201a;
+    --accent: #3ecf8e;
+    --accent-fg: #06140e;
+    --accent-glow: rgb(62 207 142 / 0.22);
+    --bg-grad: radial-gradient(
+        120% 80% at 50% -10%,
+        #143528 0%,
+        transparent 55%
+      ),
+      radial-gradient(80% 60% at 100% 100%, #101a15 0%, transparent 50%),
+      var(--bg);
+  }
+}
+
+@theme inline {
+  --color-background: var(--bg);
+  --color-foreground: var(--fg);
+  --font-sans: var(--font-body);
+  --font-display: var(--font-display);
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  background: var(--bg-grad);
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: var(--font-body), ui-sans-serif, system-ui, sans-serif;
+  min-height: 100dvh;
+}
+
+button {
+  cursor: pointer;
+}
