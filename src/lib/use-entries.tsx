@@ -50,6 +50,7 @@ type EntriesContextValue = {
   avg7: number;
   syncStatus: SyncStatus;
   pendingCount: number;
+  lastError: string | null;
   add: (count?: number) => void;
   undo: () => void;
   refreshFromCloud: () => Promise<void>;
@@ -63,6 +64,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   const [queue, setQueue] = useState<PendingOp[]>([]);
   const [ready, setReady] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("local");
+  const [lastError, setLastError] = useState<string | null>(null);
 
   const entriesRef = useRef(entries);
   entriesRef.current = entries;
@@ -108,9 +110,11 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
         setQueue(ops);
         saveQueue(ops);
       }
+      setLastError(null);
       setSyncStatus("synced");
       return true;
-    } catch {
+    } catch (e) {
+      setLastError(e instanceof Error ? e.message : "Sync failed");
       setSyncStatus("error");
       return false;
     } finally {
@@ -129,6 +133,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
           const remote = await fetchRemoteEntries(uid);
           setEntries(remote);
           saveOwnerId(uid);
+          setLastError(null);
           setSyncStatus("synced");
           return;
         }
@@ -139,8 +144,20 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
         const withPending = applyPendingToEntries(merged, queueRef.current);
         setEntries(withPending);
         saveOwnerId(uid);
-        setSyncStatus(queueRef.current.length > 0 ? "error" : "synced");
-      } catch {
+        if (queueRef.current.length > 0) {
+          setSyncStatus("error");
+        } else {
+          setLastError(null);
+          setSyncStatus("synced");
+        }
+      } catch (e) {
+        const msg =
+          e && typeof e === "object" && "message" in e
+            ? String((e as { message: string }).message)
+            : e instanceof Error
+              ? e.message
+              : "Sync failed";
+        setLastError(msg);
         setSyncStatus("error");
       }
     },
@@ -283,6 +300,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       avg7,
       syncStatus,
       pendingCount: queue.length,
+      lastError,
       add,
       undo,
       refreshFromCloud,
@@ -295,6 +313,7 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       avg7,
       syncStatus,
       queue.length,
+      lastError,
       add,
       undo,
       refreshFromCloud,

@@ -16,7 +16,8 @@ export function AccountScreen() {
     verifyEmailOtp,
     signOut,
   } = useAuth();
-  const { syncStatus, pendingCount, refreshFromCloud } = useEntries();
+  const { syncStatus, pendingCount, lastError, refreshFromCloud, entries } =
+    useEntries();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [awaitingCode, setAwaitingCode] = useState(false);
@@ -123,6 +124,13 @@ export function AccountScreen() {
             <p className="mt-2 text-sm text-[var(--muted)]">
               Status: <span className="text-[var(--fg)]">{statusLabel}</span>
             </p>
+            <p className="mt-1 text-sm text-[var(--muted)]">
+              Entries:{" "}
+              <span className="text-[var(--fg)]">{entries.length}</span>
+            </p>
+            {lastError ? (
+              <p className="mt-3 text-sm text-red-500 break-words">{lastError}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-3">
