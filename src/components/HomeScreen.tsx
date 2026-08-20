@@ -1,9 +1,10 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { formatAvg } from "@/lib/dates";
+import { formatAvg, formatTime, todayKey } from "@/lib/dates";
 import { haptic } from "@/lib/haptics";
+import { entriesForDay } from "@/lib/store";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 
@@ -14,6 +15,16 @@ export function HomeScreen() {
   const { ready, entries, today, avg7, add, undo, syncStatus } = useEntries();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longFiredRef = useRef(false);
+  const [popKey, setPopKey] = useState(0);
+  const [pulsing, setPulsing] = useState(false);
+  const [flashKey, setFlashKey] = useState(0);
+
+  const lastToday = useMemo(() => {
+    if (!ready) return null;
+    const day = entriesForDay(entries, todayKey());
+    if (day.length === 0) return null;
+    return day[day.length - 1];
+  }, [ready, entries]);
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -21,6 +32,15 @@ export function HomeScreen() {
       timerRef.current = null;
     }
   };
+
+  const bumpFeedback = useCallback((style: "medium" | "heavy") => {
+    haptic(style);
+    setPopKey((k) => k + 1);
+    setPulsing(false);
+    // Restart CSS animation on next frame
+    requestAnimationFrame(() => setPulsing(true));
+    setFlashKey((k) => k + 1);
+  }, []);
 
   const onPlusDown = useCallback(
     (e: React.PointerEvent<HTMLButtonElement>) => {
@@ -30,10 +50,10 @@ export function HomeScreen() {
       timerRef.current = setTimeout(() => {
         longFiredRef.current = true;
         add(5);
-        haptic("heavy");
+        bumpFeedback("heavy");
       }, LONG_PRESS_MS);
     },
-    [add],
+    [add, bumpFeedback],
   );
 
   const onPlusUp = useCallback(
@@ -44,9 +64,9 @@ export function HomeScreen() {
       clearTimer();
       if (longFiredRef.current) return;
       add(1);
-      haptic("medium");
+      bumpFeedback("medium");
     },
-    [add],
+    [add, bumpFeedback],
   );
 
   const onPlusCancel = useCallback(() => {
@@ -56,10 +76,15 @@ export function HomeScreen() {
   const onMinus = useCallback(() => {
     undo();
     haptic("light");
+    setPopKey((k) => k + 1);
   }, [undo]);
 
   return (
     <div className="app-screen relative flex flex-col">
+      {flashKey > 0 ? (
+        <div key={flashKey} className="na3-tap-flash" aria-hidden />
+      ) : null}
+
       <header className="flex items-baseline justify-between gap-3">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--fg)]">
           Na3Na3
@@ -90,7 +115,8 @@ export function HomeScreen() {
       <main className="flex flex-1 flex-col items-center justify-center gap-10">
         <div className="flex flex-col items-center gap-2">
           <p
-            className="font-[family-name:var(--font-display)] text-[clamp(4.5rem,22vw,8.5rem)] leading-none font-semibold tabular-nums tracking-tight text-[var(--fg)]"
+            key={popKey}
+            className={`font-[family-name:var(--font-display)] text-[clamp(4.5rem,22vw,8.5rem)] leading-none font-semibold tabular-nums tracking-tight text-[var(--fg)] ${popKey > 0 ? "na3-count-pop" : ""}`}
             aria-live="polite"
             aria-label={`Today: ${ready ? today : "…"}`}
           >
@@ -98,6 +124,13 @@ export function HomeScreen() {
           </p>
           <p className="text-sm text-[var(--muted)]">
             7-day avg {ready ? formatAvg(avg7) : "—"}
+          </p>
+          <p className="text-sm tabular-nums text-[var(--muted)]">
+            {lastToday
+              ? `last ${formatTime(lastToday.loggedAt)}`
+              : ready
+                ? "no log yet today"
+                : "—"}
           </p>
         </div>
 
@@ -109,7 +142,8 @@ export function HomeScreen() {
           onPointerLeave={onPlusCancel}
           onPointerCancel={onPlusCancel}
           onContextMenu={(e) => e.preventDefault()}
-          className="select-none touch-manipulation active:scale-[0.97] transition-transform duration-100 flex h-40 w-40 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_12px_40px_var(--accent-glow)]"
+          onAnimationEnd={() => setPulsing(false)}
+          className={`select-none touch-manipulation flex h-40 w-40 items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_12px_40px_var(--accent-glow)] ${pulsing ? "na3-btn-pulse" : ""}`}
         >
           <span className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none">
             +1

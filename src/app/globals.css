@@ -87,3 +87,63 @@ button {
   padding-right: max(1.5rem, env(safe-area-inset-right));
   padding-top: max(1.5rem, env(safe-area-inset-top));
 }
+
+/* iOS-friendly tap feedback (vibrate is unreliable on Safari/PWA) */
+@keyframes na3-count-pop {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes na3-btn-ring {
+  0% {
+    box-shadow: 0 12px 40px var(--accent-glow);
+    transform: scale(0.96);
+  }
+  55% {
+    box-shadow:
+      0 0 0 14px color-mix(in srgb, var(--accent) 22%, transparent),
+      0 12px 40px var(--accent-glow);
+    transform: scale(1.03);
+  }
+  100% {
+    box-shadow: 0 12px 40px var(--accent-glow);
+    transform: scale(1);
+  }
+}
+
+@keyframes na3-flash {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.18;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.na3-count-pop {
+  animation: na3-count-pop 280ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.na3-btn-pulse {
+  animation: na3-btn-ring 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.na3-tap-flash {
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background: var(--accent);
+  opacity: 0;
+  z-index: 30;
+  animation: na3-flash 280ms ease-out;
+}
