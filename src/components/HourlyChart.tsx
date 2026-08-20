@@ -14,11 +14,11 @@ export function HourlyChart({ hours }: Props) {
   );
 
   const w = 320;
-  const h = 100;
-  const padL = 4;
-  const padR = 4;
+  const h = 112;
+  const padL = 8;
+  const padR = 8;
   const padT = 8;
-  const padB = 20;
+  const padB = 28;
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
   const gap = 1.5;
@@ -28,7 +28,8 @@ export function HourlyChart({ hours }: Props) {
   const barH = (count: number) => (count / max) * innerH;
   const barY = (count: number) => padT + innerH - barH(count);
 
-  const labelHours = [0, 6, 12, 18, 23];
+  // Clock ticks every 3 hours: 12am 3am 6am 9am 12pm 3pm 6pm 9pm
+  const labelHours = [0, 3, 6, 9, 12, 15, 18, 21];
 
   return (
     <svg
@@ -64,14 +65,21 @@ export function HourlyChart({ hours }: Props) {
         <text
           key={hour}
           x={barX(hour) + barW / 2}
-          y={h - 6}
+          y={h - 8}
           textAnchor="middle"
           className="fill-[var(--muted)]"
-          style={{ fontSize: 9 }}
+          style={{ fontSize: 8 }}
         >
-          {String(hour).padStart(2, "0")}
+          {formatClockLabel(hour)}
         </text>
       ))}
     </svg>
   );
+}
+
+function formatClockLabel(hour: number): string {
+  if (hour === 0) return "12am";
+  if (hour === 12) return "12pm";
+  if (hour < 12) return `${hour}am`;
+  return `${hour - 12}pm`;
 }
