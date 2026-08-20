@@ -312,13 +312,20 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- only rebind on auth identity
   }, [authReady, ready, userId]);
 
-  // Background pull while signed in (does not wipe optimistic ops).
+  // Background flush + pull while signed in (does not wipe optimistic ops).
   useEffect(() => {
     if (!userId) return;
 
     const softPull = () => {
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
       void flushQueue(userId)
-        .then(() => pullFromCloud(userId))
+        .then(async () => {
+          await pullFromCloud(userId);
+          if (queueRef.current.length === 0) {
+            setLastError(null);
+            setSyncStatus("synced");
+          }
+        })
         .catch((e) => {
           setLastError(errorMessage(e));
           setSyncStatus("error");
@@ -333,12 +340,23 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
     window.addEventListener("focus", softPull);
     document.addEventListener("visibilitychange", onVisibility);
 
+    // Soft pull + retry pending queue often enough that manual Sync is rare.
     const interval = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        void pullFromCloud(userId).catch(() => {
-          /* keep optimistic local state on transient errors */
+      if (document.visibilityState !== "visible") return;
+      if (typeof navigator !== "undefined" && !navigator.onLine) return;
+      if (queueRef.current.length > 0) {
+        void flushQueue(userId).then((ok) => {
+          if (ok) {
+            void pullFromCloud(userId).catch(() => {
+              /* keep optimistic local state */
+            });
+          }
         });
+        return;
       }
+      void pullFromCloud(userId).catch(() => {
+        /* keep optimistic local state on transient errors */
+      });
     }, 2500);
 
     return () => {
@@ -348,6 +366,17 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       window.clearInterval(interval);
     };
   }, [userId, flushQueue, pullFromCloud]);
+
+  // Extra backoff retry after a failed flush with pending ops.
+  useEffect(() => {
+    if (!userId || queue.length === 0 || syncStatus !== "error") return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    const t = window.setTimeout(() => {
+      void flushQueue(userId);
+    }, 4000);
+    return () => window.clearTimeout(t);
+  }, [userId, queue.length, syncStatus, flushQueue]);
 
   const add = useCallback(
     (count = 1) => {

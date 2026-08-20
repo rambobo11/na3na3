@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatAvg, formatTime, todayKey } from "@/lib/dates";
 import { haptic } from "@/lib/haptics";
 import { entriesForDay } from "@/lib/store";
+import { SyncBadge } from "@/components/SyncBadge";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 
@@ -12,7 +13,8 @@ const LONG_PRESS_MS = 450;
 
 export function HomeScreen() {
   const { configured, user } = useAuth();
-  const { ready, entries, today, avg7, add, undo, syncStatus } = useEntries();
+  const { ready, entries, today, avg7, add, undo } = useEntries();
+
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const longFiredRef = useRef(false);
   const [popKey, setPopKey] = useState(0);
@@ -96,9 +98,9 @@ export function HomeScreen() {
           >
             Login
           </Link>
-        ) : configured && user && syncStatus === "synced" ? (
-          <span className="shrink-0 text-xs text-[var(--muted)]">synced</span>
-        ) : null}
+        ) : (
+          <SyncBadge compact />
+        )}
       </header>
 
       {configured && !user ? (

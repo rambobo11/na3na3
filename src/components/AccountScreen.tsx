@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import { SyncBadge } from "@/components/SyncBadge";
 import { friendlyAuthError } from "@/lib/auth-errors";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
@@ -71,17 +72,6 @@ export function AccountScreen() {
     setSyncing(false);
   }
 
-  const statusLabel =
-    syncStatus === "synced"
-      ? "synced"
-      : syncStatus === "syncing" || syncing
-        ? "syncing…"
-        : syncStatus === "error"
-          ? pendingCount > 0
-            ? `pending (${pendingCount}) — tap retry`
-            : "sync error — tap retry"
-          : "local only";
-
   return (
     <div className="app-screen mx-auto flex max-w-md flex-col">
       <header className="mb-8">
@@ -121,16 +111,29 @@ export function AccountScreen() {
               Signed in
             </p>
             <p className="mt-1 break-all text-[var(--fg)]">{user.email}</p>
-            <p className="mt-2 text-sm text-[var(--muted)]">
-              Status: <span className="text-[var(--fg)]">{statusLabel}</span>
-            </p>
-            <p className="mt-1 text-sm text-[var(--muted)]">
+            <div className="mt-3">
+              <SyncBadge />
+            </div>
+            <p className="mt-3 text-sm text-[var(--muted)]">
               Entries:{" "}
               <span className="text-[var(--fg)]">{entries.length}</span>
+              {pendingCount > 0 ? (
+                <>
+                  {" · "}
+                  <span className="text-[var(--fg)]">
+                    {pendingCount} waiting to sync
+                  </span>
+                </>
+              ) : null}
             </p>
             {lastError ? (
               <p className="mt-3 text-sm text-red-500 break-words">{lastError}</p>
-            ) : null}
+            ) : (
+              <p className="mt-3 text-sm text-[var(--muted)]">
+                Changes sync automatically when online. Sync now is only needed
+                if something sticks on pending.
+              </p>
+            )}
           </div>
 
           <div className="flex flex-col gap-3">
