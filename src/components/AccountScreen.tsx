@@ -7,63 +7,66 @@ import { friendlyAuthError } from "@/lib/auth-errors";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 
+type Mode = "signin" | "signup";
+
 export function AccountScreen() {
   const searchParams = useSearchParams();
   const {
     configured,
     ready,
     user,
-    signInWithEmail,
-    verifyEmailOtp,
+    signInWithPassword,
+    signUpWithPassword,
     signOut,
   } = useAuth();
   const { syncStatus, pendingCount, lastError, refreshFromCloud, entries } =
     useEntries();
+  const [mode, setMode] = useState<Mode>("signin");
   const [email, setEmail] = useState("");
-  const [code, setCode] = useState("");
-  const [awaitingCode, setAwaitingCode] = useState(false);
+  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
     if (searchParams.get("error") === "auth") {
-      setMessage("Sign-in link expired or invalid. Use the email code instead.");
-      setAwaitingCode(true);
+      setMessage("Sign-in link failed. Use email + password instead.");
     }
   }, [searchParams]);
 
-  async function sendCode() {
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
     setBusy(true);
     setMessage(null);
-    const { error } = await signInWithEmail(email);
+
+    if (password.length < 6) {
+      setBusy(false);
+      setMessage("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (mode === "signin") {
+      const { error } = await signInWithPassword(email, password);
+      setBusy(false);
+      if (error) setMessage(friendlyAuthError(error));
+      return;
+    }
+
+    const { error, needsEmailConfirm } = await signUpWithPassword(
+      email,
+      password,
+    );
     setBusy(false);
     if (error) {
       setMessage(friendlyAuthError(error));
       return;
     }
-    setAwaitingCode(true);
-    setMessage("Check your email for a 6-digit code (best on iPhone app).");
-  }
-
-  async function onSendCode(e: FormEvent) {
-    e.preventDefault();
-    await sendCode();
-  }
-
-  async function onVerifyCode(e: FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setMessage(null);
-    const { error } = await verifyEmailOtp(email, code);
-    setBusy(false);
-    if (error) {
-      setMessage(friendlyAuthError(error));
-      return;
+    if (needsEmailConfirm) {
+      setMessage(
+        "Account created. Confirm the email link once, then Sign in here with the same password on Mac and iPhone.",
+      );
+      setMode("signin");
     }
-    setCode("");
-    setAwaitingCode(false);
-    setMessage(null);
   }
 
   async function onSyncNow() {
@@ -79,7 +82,7 @@ export function AccountScreen() {
           Login
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
-          Enter your email to sync Mac and iPhone
+          Same email + password on Mac and iPhone to sync
         </p>
       </header>
 
@@ -97,10 +100,6 @@ export function AccountScreen() {
             <li>NEXT_PUBLIC_SUPABASE_URL</li>
             <li>NEXT_PUBLIC_SUPABASE_ANON_KEY</li>
           </ul>
-          <p>
-            After redeploy, reopen the app and you will see the email field
-            here.
-          </p>
         </div>
       ) : !ready ? (
         <p className="text-sm text-[var(--muted)]">Loading…</p>
@@ -156,64 +155,45 @@ export function AccountScreen() {
             </button>
           </div>
         </div>
-      ) : awaitingCode ? (
-        <form onSubmit={onVerifyCode} className="space-y-4">
-          <p className="text-sm text-[var(--muted)]">
-            Code sent to <span className="text-[var(--fg)]">{email}</span>
-          </p>
-          <label className="block">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
-              6-digit code
-            </span>
-            <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              pattern="[0-9]{6}"
-              maxLength={8}
-              required
-              value={code}
-              onChange={(e) => setCode(e.target.value.replace(/\s/g, ""))}
-              className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-center text-2xl tracking-[0.35em] text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-              placeholder="000000"
-            />
-          </label>
-          <button
-            type="submit"
-            disabled={busy || code.trim().length < 6}
-            className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-[var(--accent-fg)] disabled:opacity-60"
-          >
-            {busy ? "Checking…" : "Confirm code"}
-          </button>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void sendCode()}
-            className="w-full rounded-full px-5 py-3 text-sm text-[var(--muted)]"
-          >
-            Resend code
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setAwaitingCode(false);
-              setCode("");
-              setMessage(null);
-            }}
-            className="w-full rounded-full px-5 py-2 text-sm text-[var(--muted)]"
-          >
-            Change email
-          </button>
-          {message ? (
-            <p className="text-sm text-[var(--muted)]">{message}</p>
-          ) : null}
-        </form>
       ) : (
-        <form onSubmit={onSendCode} className="space-y-4">
+        <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
+          <div className="flex rounded-full border border-[var(--border)] p-1">
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signin");
+                setMessage(null);
+              }}
+              className={`flex-1 rounded-full py-2 text-sm ${
+                mode === "signin"
+                  ? "bg-[var(--fg)] text-[var(--bg)]"
+                  : "text-[var(--muted)]"
+              }`}
+            >
+              Sign in
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setMode("signup");
+                setMessage(null);
+              }}
+              className={`flex-1 rounded-full py-2 text-sm ${
+                mode === "signup"
+                  ? "bg-[var(--fg)] text-[var(--bg)]"
+                  : "text-[var(--muted)]"
+              }`}
+            >
+              Create account
+            </button>
+          </div>
+
           <p className="text-sm leading-relaxed text-[var(--muted)]">
-            On iPhone, enter the email code in this app — don’t rely on the
-            magic link (Safari and the home-screen app don’t share login).
+            Create once, then sign in with the{" "}
+            <span className="text-[var(--fg)]">same password</span> in Safari /
+            Brave and in the iPhone home-screen app. No email code needed.
           </p>
+
           <label className="block">
             <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
               Email
@@ -228,13 +208,37 @@ export function AccountScreen() {
               placeholder="you@example.com"
             />
           </label>
+
+          <label className="block">
+            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+              Password
+            </span>
+            <input
+              type="password"
+              required
+              minLength={6}
+              autoComplete={
+                mode === "signup" ? "new-password" : "current-password"
+              }
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+              placeholder="••••••••"
+            />
+          </label>
+
           <button
             type="submit"
             disabled={busy}
             className="w-full rounded-full bg-[var(--accent)] px-5 py-3.5 text-[var(--accent-fg)] disabled:opacity-60"
           >
-            {busy ? "Sending…" : "Send code"}
+            {busy
+              ? "…"
+              : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
           </button>
+
           {message ? (
             <p className="text-sm text-[var(--muted)]">{message}</p>
           ) : null}

@@ -3,10 +3,19 @@ export function friendlyAuthError(raw: string | null | undefined): string {
   if (!raw) return "Something went wrong. Try again.";
   const m = raw.toLowerCase();
 
-  if (m.includes("otp") || m.includes("token") || m.includes("code")) {
-    return "Invalid or expired code. Request a new one.";
+  if (m.includes("invalid login") || m.includes("invalid credentials")) {
+    return "Wrong email or password.";
   }
-  if (m.includes("rate") || m.includes("security")) {
+  if (m.includes("email not confirmed")) {
+    return "Confirm your email first (check inbox), or disable confirm-email in Supabase.";
+  }
+  if (m.includes("user already registered") || m.includes("already been registered")) {
+    return "Account exists — use Sign in, or the same password on both devices.";
+  }
+  if (m.includes("password") && (m.includes("least") || m.includes("weak") || m.includes("short"))) {
+    return "Password must be at least 6 characters.";
+  }
+  if (m.includes("rate") || m.includes("security") || m.includes("too many")) {
     return "Too many attempts. Wait a bit and try again.";
   }
   if (m.includes("invalid") && m.includes("email")) {
@@ -19,5 +28,5 @@ export function friendlyAuthError(raw: string | null | undefined): string {
     return "Sync is not configured yet.";
   }
 
-  return "Couldn’t send the link. Try again.";
+  return "Couldn’t sign in. Try again.";
 }

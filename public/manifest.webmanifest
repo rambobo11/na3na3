@@ -1,7 +1,7 @@
 {
   "name": "Na3Na3",
   "short_name": "Na3Na3",
-  "description": "Na3Na3",
+  "description": "One-tap daily log",
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
@@ -21,7 +21,7 @@
       "purpose": "any"
     },
     {
-      "src": "/icons/icon-512.png",
+      "src": "/icons/icon-512-maskable.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"

@@ -18,10 +18,13 @@ type AuthContextValue = {
   ready: boolean;
   session: Session | null;
   user: User | null;
-  signInWithEmail: (email: string) => Promise<{ error: string | null }>;
-  verifyEmailOtp: (
+  signUpWithPassword: (
     email: string,
-    token: string,
+    password: string,
+  ) => Promise<{ error: string | null; needsEmailConfirm?: boolean }>;
+  signInWithPassword: (
+    email: string,
+    password: string,
   ) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
 };
@@ -61,33 +64,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [configured]);
 
-  const signInWithEmail = useCallback(async (email: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return { error: "Supabase is not configured." };
+  const signUpWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const supabase = getSupabase();
+      if (!supabase) return { error: "Supabase is not configured." };
 
-    const redirectTo = `${window.location.origin}/auth/callback`;
-    const { error } = await supabase.auth.signInWithOtp({
-      email: email.trim(),
-      options: {
-        emailRedirectTo: redirectTo,
-        shouldCreateUser: true,
-      },
-    });
-    return { error: error?.message ?? null };
-  }, []);
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+      });
+      if (error) return { error: error.message };
 
-  /** 6-digit email code — works inside iPhone home-screen app (no redirect). */
-  const verifyEmailOtp = useCallback(async (email: string, token: string) => {
-    const supabase = getSupabase();
-    if (!supabase) return { error: "Supabase is not configured." };
+      // Confirm-email enabled → no session until link clicked.
+      if (!data.session) {
+        return { error: null, needsEmailConfirm: true };
+      }
+      return { error: null };
+    },
+    [],
+  );
 
-    const { error } = await supabase.auth.verifyOtp({
-      email: email.trim(),
-      token: token.trim(),
-      type: "email",
-    });
-    return { error: error?.message ?? null };
-  }, []);
+  const signInWithPassword = useCallback(
+    async (email: string, password: string) => {
+      const supabase = getSupabase();
+      if (!supabase) return { error: "Supabase is not configured." };
+
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      });
+      return { error: error?.message ?? null };
+    },
+    [],
+  );
 
   const signOut = useCallback(async () => {
     clearLocalData();
@@ -102,11 +111,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       session,
       user: session?.user ?? null,
-      signInWithEmail,
-      verifyEmailOtp,
+      signUpWithPassword,
+      signInWithPassword,
       signOut,
     }),
-    [configured, ready, session, signInWithEmail, verifyEmailOtp, signOut],
+    [
+      configured,
+      ready,
+      session,
+      signUpWithPassword,
+      signInWithPassword,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

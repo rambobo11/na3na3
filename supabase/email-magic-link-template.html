@@ -1,0 +1,16 @@
+<!--
+  Supabase Dashboard → Authentication → Email → Templates → Magic Link
+
+  Paste Subject + Body below. Without {{ .Token }}, the app asks for a
+  6-digit code but the email only shows a link.
+-->
+
+Subject:
+Your Na3Na3 code: {{ .Token }}
+
+Body:
+<h2>Na3Na3 login code</h2>
+<p style="font-size:28px;letter-spacing:6px;font-weight:700;">{{ .Token }}</p>
+<p>Enter this 6-digit code in the Na3Na3 app (Login tab).</p>
+<p style="color:#666;font-size:13px;">On iPhone, prefer the code — the magic link opens Safari and may not share login with the home-screen app.</p>
+<p><a href="{{ .ConfirmationURL }}">Or sign in with this link (Mac / Safari)</a></p>

@@ -108,9 +108,9 @@ export function HomeScreen() {
           href="/account"
           className="mt-4 block rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)]"
         >
-          Put your email in{" "}
+          Create an account in{" "}
           <span className="font-medium text-[var(--fg)]">Login</span> (bottom
-          tab) to sync with Mac.
+          tab) — same password syncs Mac and iPhone.
         </Link>
       ) : null}
 
