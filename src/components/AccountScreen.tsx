@@ -7,7 +7,7 @@ import { friendlyAuthError } from "@/lib/auth-errors";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 
-type Mode = "signin" | "signup";
+type Mode = "signin" | "signup" | "forgot" | "newpassword";
 
 export function AccountScreen() {
   const searchParams = useSearchParams();
@@ -15,8 +15,12 @@ export function AccountScreen() {
     configured,
     ready,
     user,
+    recoveryMode,
     signInWithPassword,
     signUpWithPassword,
+    resetPassword,
+    updatePassword,
+    clearRecoveryMode,
     signOut,
   } = useAuth();
   const { syncStatus, pendingCount, lastError, refreshFromCloud, entries } =
@@ -34,10 +38,53 @@ export function AccountScreen() {
     }
   }, [searchParams]);
 
+  useEffect(() => {
+    if (recoveryMode) {
+      setMode("newpassword");
+      setMessage("Choose a new password for this account.");
+    }
+  }, [recoveryMode]);
+
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setBusy(true);
     setMessage(null);
+
+    if (mode === "forgot") {
+      if (!email.trim()) {
+        setBusy(false);
+        setMessage("Enter your email first.");
+        return;
+      }
+      const { error } = await resetPassword(email);
+      setBusy(false);
+      if (error) {
+        setMessage(friendlyAuthError(error));
+        return;
+      }
+      setMessage(
+        "Check your email for a reset link. Open it, then set a new password here.",
+      );
+      return;
+    }
+
+    if (mode === "newpassword") {
+      if (password.length < 6) {
+        setBusy(false);
+        setMessage("Password must be at least 6 characters.");
+        return;
+      }
+      const { error } = await updatePassword(password);
+      setBusy(false);
+      if (error) {
+        setMessage(friendlyAuthError(error));
+        return;
+      }
+      setPassword("");
+      setMode("signin");
+      setMessage("Password updated. You’re signed in — sync is ready.");
+      return;
+    }
 
     if (password.length < 6) {
       setBusy(false);
@@ -59,11 +106,14 @@ export function AccountScreen() {
     setBusy(false);
     if (error) {
       setMessage(friendlyAuthError(error));
+      if (error.toLowerCase().includes("already")) {
+        setMode("signin");
+      }
       return;
     }
     if (needsEmailConfirm) {
       setMessage(
-        "Account created. Confirm the email link once, then Sign in here with the same password on Mac and iPhone.",
+        "Account created. Confirm the email link once, then Sign in with this password.",
       );
       setMode("signin");
     }
@@ -74,6 +124,8 @@ export function AccountScreen() {
     await refreshFromCloud();
     setSyncing(false);
   }
+
+  const showAuthForm = !user || mode === "newpassword";
 
   return (
     <div className="app-screen mx-auto flex max-w-md flex-col">
@@ -103,7 +155,7 @@ export function AccountScreen() {
         </div>
       ) : !ready ? (
         <p className="text-sm text-[var(--muted)]">Loading…</p>
-      ) : user ? (
+      ) : user && mode !== "newpassword" ? (
         <div className="space-y-6">
           <div>
             <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
@@ -133,6 +185,9 @@ export function AccountScreen() {
                 if something sticks on pending.
               </p>
             )}
+            {message ? (
+              <p className="mt-3 text-sm text-[var(--muted)]">{message}</p>
+            ) : null}
           </div>
 
           <div className="flex flex-col gap-3">
@@ -155,77 +210,87 @@ export function AccountScreen() {
             </button>
           </div>
         </div>
-      ) : (
+      ) : showAuthForm ? (
         <form onSubmit={(e) => void onSubmit(e)} className="space-y-4">
-          <div className="flex rounded-full border border-[var(--border)] p-1">
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signin");
-                setMessage(null);
-              }}
-              className={`flex-1 rounded-full py-2 text-sm ${
-                mode === "signin"
-                  ? "bg-[var(--fg)] text-[var(--bg)]"
-                  : "text-[var(--muted)]"
-              }`}
-            >
-              Sign in
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setMode("signup");
-                setMessage(null);
-              }}
-              className={`flex-1 rounded-full py-2 text-sm ${
-                mode === "signup"
-                  ? "bg-[var(--fg)] text-[var(--bg)]"
-                  : "text-[var(--muted)]"
-              }`}
-            >
-              Create account
-            </button>
-          </div>
+          {mode !== "newpassword" && mode !== "forgot" ? (
+            <div className="flex rounded-full border border-[var(--border)] p-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signin");
+                  setMessage(null);
+                }}
+                className={`flex-1 rounded-full py-2 text-sm ${
+                  mode === "signin"
+                    ? "bg-[var(--fg)] text-[var(--bg)]"
+                    : "text-[var(--muted)]"
+                }`}
+              >
+                Sign in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMode("signup");
+                  setMessage(null);
+                }}
+                className={`flex-1 rounded-full py-2 text-sm ${
+                  mode === "signup"
+                    ? "bg-[var(--fg)] text-[var(--bg)]"
+                    : "text-[var(--muted)]"
+                }`}
+              >
+                Create account
+              </button>
+            </div>
+          ) : null}
 
           <p className="text-sm leading-relaxed text-[var(--muted)]">
-            Create once, then sign in with the{" "}
-            <span className="text-[var(--fg)]">same password</span> in Safari /
-            Brave and in the iPhone home-screen app. No email code needed.
+            {mode === "forgot"
+              ? "We’ll email a reset link. Open it on this device, then pick a password."
+              : mode === "newpassword"
+                ? "Set the password you’ll reuse on Mac and iPhone."
+                : "Same password on both devices. If Sign in fails after the old email-link login, use Forgot password."}
           </p>
 
-          <label className="block">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
-              Email
-            </span>
-            <input
-              type="email"
-              required
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-              placeholder="you@example.com"
-            />
-          </label>
+          {mode !== "newpassword" ? (
+            <label className="block">
+              <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+                Email
+              </span>
+              <input
+                type="email"
+                required
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                placeholder="you@example.com"
+              />
+            </label>
+          ) : null}
 
-          <label className="block">
-            <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
-              Password
-            </span>
-            <input
-              type="password"
-              required
-              minLength={6}
-              autoComplete={
-                mode === "signup" ? "new-password" : "current-password"
-              }
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-[var(--fg)] outline-none focus:border-[var(--accent)]"
-              placeholder="••••••••"
-            />
-          </label>
+          {mode !== "forgot" ? (
+            <label className="block">
+              <span className="text-xs uppercase tracking-wider text-[var(--muted)]">
+                {mode === "newpassword" ? "New password" : "Password"}
+              </span>
+              <input
+                type="password"
+                required
+                minLength={6}
+                autoComplete={
+                  mode === "signup" || mode === "newpassword"
+                    ? "new-password"
+                    : "current-password"
+                }
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="mt-2 w-full rounded-2xl border border-[var(--border)] bg-transparent px-4 py-3 text-[var(--fg)] outline-none focus:border-[var(--accent)]"
+                placeholder="••••••••"
+              />
+            </label>
+          ) : null}
 
           <button
             type="submit"
@@ -236,14 +301,45 @@ export function AccountScreen() {
               ? "…"
               : mode === "signin"
                 ? "Sign in"
-                : "Create account"}
+                : mode === "signup"
+                  ? "Create account"
+                  : mode === "forgot"
+                    ? "Send reset link"
+                    : "Save password"}
           </button>
+
+          {mode === "signin" ? (
+            <button
+              type="button"
+              onClick={() => {
+                setMode("forgot");
+                setMessage(null);
+              }}
+              className="w-full rounded-full px-5 py-2 text-sm text-[var(--muted)]"
+            >
+              Forgot password?
+            </button>
+          ) : null}
+
+          {mode === "forgot" || mode === "newpassword" ? (
+            <button
+              type="button"
+              onClick={() => {
+                clearRecoveryMode();
+                setMode("signin");
+                setMessage(null);
+              }}
+              className="w-full rounded-full px-5 py-2 text-sm text-[var(--muted)]"
+            >
+              Back to Sign in
+            </button>
+          ) : null}
 
           {message ? (
             <p className="text-sm text-[var(--muted)]">{message}</p>
           ) : null}
         </form>
-      )}
+      ) : null}
     </div>
   );
 }

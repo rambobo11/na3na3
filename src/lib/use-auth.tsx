@@ -18,6 +18,7 @@ type AuthContextValue = {
   ready: boolean;
   session: Session | null;
   user: User | null;
+  recoveryMode: boolean;
   signUpWithPassword: (
     email: string,
     password: string,
@@ -26,6 +27,9 @@ type AuthContextValue = {
     email: string,
     password: string,
   ) => Promise<{ error: string | null }>;
+  resetPassword: (email: string) => Promise<{ error: string | null }>;
+  updatePassword: (password: string) => Promise<{ error: string | null }>;
+  clearRecoveryMode: () => void;
   signOut: () => Promise<void>;
 };
 
@@ -35,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const configured = isSupabaseConfigured();
   const [ready, setReady] = useState(!configured);
   const [session, setSession] = useState<Session | null>(null);
+  const [recoveryMode, setRecoveryMode] = useState(false);
 
   useEffect(() => {
     if (!configured) return;
@@ -53,9 +58,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, next) => {
+    } = supabase.auth.onAuthStateChange((event, next) => {
       setSession(next);
       setReady(true);
+      if (event === "PASSWORD_RECOVERY") {
+        setRecoveryMode(true);
+      }
     });
 
     return () => {
@@ -75,7 +83,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       if (error) return { error: error.message };
 
-      // Confirm-email enabled → no session until link clicked.
+      // Empty identities = email already registered (Supabase quirk).
+      if (data.user && (data.user.identities?.length ?? 0) === 0) {
+        return { error: "User already registered" };
+      }
+
       if (!data.session) {
         return { error: null, needsEmailConfirm: true };
       }
@@ -98,8 +110,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  const resetPassword = useCallback(async (email: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return { error: "Supabase is not configured." };
+
+    const redirectTo = `${window.location.origin}/account`;
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo,
+    });
+    return { error: error?.message ?? null };
+  }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    const supabase = getSupabase();
+    if (!supabase) return { error: "Supabase is not configured." };
+
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) setRecoveryMode(false);
+    return { error: error?.message ?? null };
+  }, []);
+
+  const clearRecoveryMode = useCallback(() => setRecoveryMode(false), []);
+
   const signOut = useCallback(async () => {
     clearLocalData();
+    setRecoveryMode(false);
     const supabase = getSupabase();
     if (!supabase) return;
     await supabase.auth.signOut();
@@ -111,16 +146,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ready,
       session,
       user: session?.user ?? null,
+      recoveryMode,
       signUpWithPassword,
       signInWithPassword,
+      resetPassword,
+      updatePassword,
+      clearRecoveryMode,
       signOut,
     }),
     [
       configured,
       ready,
       session,
+      recoveryMode,
       signUpWithPassword,
       signInWithPassword,
+      resetPassword,
+      updatePassword,
+      clearRecoveryMode,
       signOut,
     ],
   );
