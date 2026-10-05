@@ -157,21 +157,26 @@ export function StatsScreen() {
     [ready, cha7et, detailDay],
   );
 
-  const selectedDetail = useMemo(() => {
+  const selectedCounts = useMemo(() => {
     if (!selectedId) return null;
     if (weekly) {
       const a = weeksA.find((x) => x.start === selectedId);
       const b = weeksB.find((x) => x.start === selectedId);
       if (!a && !b) return null;
-      const start = a?.start ?? b!.start;
-      const end = a?.end ?? b!.end;
-      return `${formatWeekRange(start, end)} · ${a?.count ?? 0} / ${b?.count ?? 0}`;
+      return {
+        title: formatWeekRange(a?.start ?? b!.start, a?.end ?? b!.end),
+        a: a?.count ?? 0,
+        b: b?.count ?? 0,
+      };
     }
     const a = dayTotalsA.find((x) => x.date === selectedId);
     const b = dayTotalsB.find((x) => x.date === selectedId);
     if (!a && !b) return null;
-    const date = a?.date ?? b!.date;
-    return `${formatShortDay(date)} · ${a?.count ?? 0} / ${b?.count ?? 0}`;
+    return {
+      title: formatShortDay(a?.date ?? b!.date),
+      a: a?.count ?? 0,
+      b: b?.count ?? 0,
+    };
   }, [selectedId, weekly, weeksA, weeksB, dayTotalsA, dayTotalsB]);
 
   function onRange(next: Range) {
@@ -181,29 +186,41 @@ export function StatsScreen() {
 
   return (
     <div className="app-screen mx-auto flex max-w-md flex-col">
-      <header className="mb-8">
+      <header className="mb-6">
         <h1 className="font-[family-name:var(--font-display)] text-2xl font-semibold tracking-tight text-[var(--fg)]">
           Stats
         </h1>
-        <p className="mt-1 text-sm text-[var(--muted)]">
-          {weekly ? "Weekly totals" : "Daily totals"}
-          {" · "}
-          <span className="text-[var(--accent)]">Na3Na3</span>
-          {" / "}
-          <span className="text-[var(--cha7et)]">cha7et</span>
-        </p>
+        <div className="mt-3 flex items-center gap-4 text-sm">
+          <LegendDot color="var(--accent)" label="Na3Na3" />
+          <LegendDot color="var(--cha7et)" label="cha7et" />
+        </div>
       </header>
 
-      <div className="mb-6 flex flex-wrap gap-2">
+      {/* Today hero */}
+      <section className="mb-8 grid grid-cols-2 gap-3">
+        <HeroCount
+          label="Na3Na3 today"
+          value={ready ? todayA : null}
+          tone="na3"
+        />
+        <HeroCount
+          label="cha7et today"
+          value={ready ? todayB : null}
+          tone="cha7et"
+        />
+      </section>
+
+      {/* Range */}
+      <div className="mb-5 flex rounded-full bg-[var(--surface)] p-1">
         {RANGES.map(({ days, label }) => (
           <button
             key={days}
             type="button"
             onClick={() => onRange(days)}
-            className={`rounded-full px-3.5 py-1.5 text-sm transition-colors ${
+            className={`min-h-9 flex-1 rounded-full text-sm transition-colors ${
               range === days
-                ? "bg-[var(--fg)] text-[var(--bg)]"
-                : "text-[var(--muted)] hover:text-[var(--fg)]"
+                ? "bg-[var(--fg)] font-medium text-[var(--bg)]"
+                : "text-[var(--muted)] active:text-[var(--fg)]"
             }`}
           >
             {label}
@@ -211,101 +228,138 @@ export function StatsScreen() {
         ))}
       </div>
 
-      <div className="mb-10">
+      <p className="mb-3 text-xs text-[var(--muted)]">
+        {weekly ? "Weekly totals" : "Daily totals"}
+        {ma ? " · line = 7-day avg" : ""}
+      </p>
+
+      <section className="mb-8">
         {ready ? (
           <DailyChart
             bars={bars}
             movingAvg={ma}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={(id) =>
+              setSelectedId((prev) => (prev === id ? null : id))
+            }
           />
         ) : (
-          <div className="h-40 animate-pulse rounded-lg bg-[var(--surface)]" />
+          <div className="h-48 animate-pulse rounded-2xl bg-[var(--surface)]" />
         )}
-        <p className="mt-2 text-center text-xs text-[var(--muted)]">
-          {selectedDetail
-            ? selectedDetail
-            : weekly
-              ? "Green = Na3Na3 · blue = cha7et · tap a bar"
-              : "Green = Na3Na3 · blue = cha7et · tap a day"}
-        </p>
-      </div>
 
-      <dl className="mb-10 grid grid-cols-2 gap-x-6 gap-y-6">
-        <DualStat
-          label="Today"
-          a={ready ? todayA : null}
-          b={ready ? todayB : null}
-        />
-        <DualStat
+        <div className="mt-3 min-h-8 text-center">
+          {selectedCounts ? (
+            <p className="text-sm tabular-nums text-[var(--fg)]">
+              <span className="text-[var(--muted)]">{selectedCounts.title}</span>
+              {" · "}
+              <span className="font-semibold text-[var(--accent)]">
+                {selectedCounts.a}
+              </span>
+              <span className="text-[var(--muted)]"> / </span>
+              <span className="font-semibold text-[var(--cha7et)]">
+                {selectedCounts.b}
+              </span>
+            </p>
+          ) : (
+            <p className="text-xs text-[var(--muted)]">
+              Tap a bar to compare
+            </p>
+          )}
+        </div>
+      </section>
+
+      {/* Compact KPI grid */}
+      <section className="mb-10 grid grid-cols-2 gap-x-5 gap-y-5">
+        <CompactDual
           label="Yesterday"
           a={ready ? yesterdayA : null}
           b={ready ? yesterdayB : null}
         />
-        <DualStat
+        <CompactDual
           label={rangeAvgLabel(range)}
           a={ready ? formatAvg(avgA) : null}
           b={ready ? formatAvg(avgB) : null}
         />
-        <DualStat
+        <CompactDual
           label="Total"
           a={ready ? totalA : null}
           b={ready ? totalB : null}
         />
-        <DualStat
-          label="Lowest"
-          a={ready && lowA ? String(lowA.count) : null}
-          b={ready && lowB ? String(lowB.count) : null}
-          hintA={ready && lowA ? formatShortDay(lowA.date) : undefined}
-          hintB={ready && lowB ? formatShortDay(lowB.date) : undefined}
-        />
-        <DualStat
-          label="Highest"
+        <CompactDual
+          label="Peak day"
           a={ready && highA ? String(highA.count) : null}
           b={ready && highB ? String(highB.count) : null}
-          hintA={ready && highA ? formatShortDay(highA.date) : undefined}
-          hintB={ready && highB ? formatShortDay(highB.date) : undefined}
+          hint={
+            ready && (highA || highB)
+              ? [
+                  highA ? formatShortDay(highA.date) : null,
+                  highB ? formatShortDay(highB.date) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : undefined
+          }
         />
-      </dl>
+        <CompactDual
+          label="Lowest day"
+          a={ready && lowA ? String(lowA.count) : null}
+          b={ready && lowB ? String(lowB.count) : null}
+          hint={
+            ready && (lowA || lowB)
+              ? [
+                  lowA ? formatShortDay(lowA.date) : null,
+                  lowB ? formatShortDay(lowB.date) : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+              : undefined
+          }
+        />
+      </section>
 
-      <section className="mb-4">
+      <section className="mb-8">
         <div className="mb-3 flex items-baseline justify-between gap-3">
           <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
             By hour
           </h2>
-          <p className="text-xs text-[var(--muted)]">
+          <p className="text-xs tabular-nums text-[var(--muted)]">
             {detailDay === today ? "Today" : formatShortDay(detailDay)}
           </p>
         </div>
-
         {ready ? (
           <HourlyChart hours={hoursA} hoursB={hoursB} />
         ) : (
-          <div className="h-24 animate-pulse rounded-lg bg-[var(--surface)]" />
+          <div className="h-28 animate-pulse rounded-2xl bg-[var(--surface)]" />
         )}
       </section>
 
       <section>
-        <h2 className="mb-3 text-xs uppercase tracking-wider text-[var(--muted)]">
+        <h2 className="mb-3 font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
           Times
         </h2>
         {ready && dayEntries.length > 0 ? (
-          <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
+          <ul className="max-h-60 space-y-1 overflow-y-auto pr-1">
             {[...dayEntries].reverse().map((e) => (
               <li
                 key={e.id}
-                className="flex items-center justify-between text-sm text-[var(--fg)]"
+                className="flex items-center justify-between gap-3 py-2.5"
               >
-                <span
-                  className={`text-xs uppercase tracking-wider ${
-                    e.kind === "cha7et"
-                      ? "text-[var(--cha7et)]"
-                      : "text-[var(--accent)]"
-                  }`}
-                >
-                  {e.kind === "cha7et" ? "cha7et" : "Na3Na3"}
+                <span className="flex items-center gap-2.5 text-sm">
+                  <span
+                    className="h-2 w-2 shrink-0 rounded-full"
+                    style={{
+                      background:
+                        e.kind === "cha7et"
+                          ? "var(--cha7et)"
+                          : "var(--accent)",
+                    }}
+                    aria-hidden
+                  />
+                  <span className="text-[var(--muted)]">
+                    {e.kind === "cha7et" ? "cha7et" : "Na3Na3"}
+                  </span>
                 </span>
-                <span className="font-[family-name:var(--font-display)] text-base tabular-nums">
+                <span className="font-[family-name:var(--font-display)] text-base font-medium tabular-nums text-[var(--fg)]">
                   {formatTime(e.loggedAt)}
                 </span>
               </li>
@@ -319,35 +373,67 @@ export function StatsScreen() {
   );
 }
 
-function DualStat({
+function LegendDot({ color, label }: { color: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-2 text-[var(--muted)]">
+      <span
+        className="h-2.5 w-2.5 rounded-full"
+        style={{ background: color }}
+        aria-hidden
+      />
+      <span className="text-[var(--fg)]">{label}</span>
+    </span>
+  );
+}
+
+function HeroCount({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number | null;
+  tone: "na3" | "cha7et";
+}) {
+  const color = tone === "cha7et" ? "var(--cha7et)" : "var(--accent)";
+  return (
+    <div className="rounded-3xl bg-[var(--surface)]/70 px-4 py-4">
+      <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+        {label}
+      </p>
+      <p
+        className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums tracking-tight"
+        style={{ color }}
+      >
+        {value === null ? "—" : value}
+      </p>
+    </div>
+  );
+}
+
+function CompactDual({
   label,
   a,
   b,
-  hintA,
-  hintB,
+  hint,
 }: {
   label: string;
   a: string | number | null;
   b: string | number | null;
-  hintA?: string;
-  hintB?: string;
+  hint?: string;
 }) {
   return (
     <div>
-      <dt className="text-xs uppercase tracking-wider text-[var(--muted)]">
+      <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
         {label}
-      </dt>
-      <dd className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums">
+      </p>
+      <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-semibold tabular-nums">
         <span className="text-[var(--accent)]">{a ?? "—"}</span>
-        <span className="mx-1 text-[var(--muted)]">/</span>
+        <span className="mx-1.5 text-[var(--border)]">/</span>
         <span className="text-[var(--cha7et)]">{b ?? "—"}</span>
-      </dd>
-      {hintA || hintB ? (
-        <p className="mt-0.5 text-xs text-[var(--muted)]">
-          {hintA ?? "—"}
-          {" · "}
-          {hintB ?? "—"}
-        </p>
+      </p>
+      {hint ? (
+        <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p>
       ) : null}
     </div>
   );

@@ -26,17 +26,17 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
   }, [bars, movingAvg]);
 
   const w = 320;
-  const h = 168;
-  const padL = 8;
-  const padR = 8;
-  const padT = 16;
-  const padB = 28;
+  const h = 200;
+  const padL = 4;
+  const padR = 4;
+  const padT = 18;
+  const padB = 30;
   const innerW = w - padL - padR;
   const innerH = h - padT - padB;
   const n = bars.length;
-  const gap = n > 40 ? 1 : n > 14 ? 2 : 6;
+  const gap = n > 40 ? 1.5 : n > 14 ? 3 : 7;
   const barW = Math.max(
-    1,
+    2,
     (innerW - gap * Math.max(0, n - 1)) / Math.max(1, n),
   );
 
@@ -62,6 +62,18 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
       role="img"
       aria-label="Period counts"
     >
+      <defs>
+        <linearGradient id="na3Bar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="1" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.72" />
+        </linearGradient>
+        <linearGradient id="cha7etBar" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor="var(--cha7et)" stopOpacity="1" />
+          <stop offset="100%" stopColor="var(--cha7et)" stopOpacity="0.7" />
+        </linearGradient>
+      </defs>
+
+      {/* soft baseline */}
       <line
         x1={padL}
         x2={w - padR}
@@ -73,16 +85,17 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
 
       {bars.map((t, i) => {
         const countB = t.countB ?? 0;
-        const heightA = Math.max(t.count > 0 ? 3 : 0, barH(t.count));
-        const heightB = Math.max(countB > 0 ? 3 : 0, barH(countB));
+        const heightA = Math.max(t.count > 0 ? 4 : 0, barH(t.count));
+        const heightB = Math.max(countB > 0 ? 4 : 0, barH(countB));
         const selected = selectedId === t.id;
         const showLabel =
           i % labelEvery === 0 || i === n - 1 || t.current === true;
-        // Slight horizontal overlap: green left-biased, blue right-biased
-        const wA = barW * 0.72;
-        const wB = barW * 0.72;
+        const pairGap = Math.min(2, barW * 0.08);
+        const wA = (barW - pairGap) * 0.52;
+        const wB = (barW - pairGap) * 0.52;
         const xA = barX(i);
-        const xB = barX(i) + barW - wB;
+        const xB = barX(i) + wA + pairGap;
+        const dim = selectedId && !selected;
         return (
           <g
             key={t.id}
@@ -96,45 +109,57 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
                 onSelect(t.id);
               }
             }}
+            opacity={dim ? 0.35 : 1}
           >
             <rect
-              x={barX(i)}
+              x={barX(i) - gap / 2}
               y={padT}
-              width={barW}
+              width={barW + gap}
               height={innerH}
               fill="transparent"
             />
+            {selected ? (
+              <rect
+                x={barX(i) - 2}
+                y={padT - 4}
+                width={barW + 4}
+                height={innerH + 8}
+                rx={6}
+                fill="var(--surface)"
+                opacity={0.9}
+              />
+            ) : null}
             <rect
               x={xA}
               y={barY(t.count)}
               width={wA}
               height={heightA}
-              rx={Math.min(4, wA / 2)}
-              fill="var(--accent)"
-              opacity={
-                selected ? 1 : t.current ? 0.95 : t.count === 0 ? 0.18 : 0.8
-              }
-              stroke={selected || t.current ? "var(--fg)" : "none"}
-              strokeWidth={selected || t.current ? 1.25 : 0}
+              rx={Math.min(5, wA / 2)}
+              fill="url(#na3Bar)"
+              opacity={t.count === 0 ? 0.16 : t.current || selected ? 1 : 0.88}
             />
             <rect
               x={xB}
               y={barY(countB)}
               width={wB}
               height={heightB}
-              rx={Math.min(4, wB / 2)}
-              fill="var(--cha7et)"
-              opacity={
-                selected ? 0.95 : t.current ? 0.9 : countB === 0 ? 0.15 : 0.75
-              }
+              rx={Math.min(5, wB / 2)}
+              fill="url(#cha7etBar)"
+              opacity={countB === 0 ? 0.14 : t.current || selected ? 1 : 0.85}
             />
             {showLabel ? (
               <text
                 x={barX(i) + barW / 2}
-                y={h - 8}
+                y={h - 10}
                 textAnchor="middle"
-                className="fill-[var(--muted)] pointer-events-none"
-                style={{ fontSize: n > 20 ? 8 : 9 }}
+                className="pointer-events-none"
+                fill={
+                  selected || t.current ? "var(--fg)" : "var(--muted)"
+                }
+                style={{
+                  fontSize: n > 20 ? 8 : 10,
+                  fontWeight: selected || t.current ? 600 : 400,
+                }}
               >
                 {t.label}
               </text>
@@ -148,10 +173,10 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
           points={maPoints}
           fill="none"
           stroke="var(--fg)"
-          strokeWidth={1.75}
+          strokeWidth={1.5}
           strokeLinecap="round"
           strokeLinejoin="round"
-          opacity={0.55}
+          opacity={0.35}
           className="pointer-events-none"
         />
       ) : null}
