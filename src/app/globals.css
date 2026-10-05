@@ -10,6 +10,9 @@
   --accent: #1f8a5b;
   --accent-fg: #f4fbf7;
   --accent-glow: rgb(31 138 91 / 0.28);
+  --cha7et: #2f6fed;
+  --cha7et-fg: #f4f7ff;
+  --cha7et-glow: rgb(47 111 237 / 0.28);
   --bg-grad: radial-gradient(
       120% 80% at 50% -10%,
       #d8efe4 0%,
@@ -30,6 +33,9 @@
     --accent: #3ecf8e;
     --accent-fg: #06140e;
     --accent-glow: rgb(62 207 142 / 0.22);
+    --cha7et: #5b8cff;
+    --cha7et-fg: #061018;
+    --cha7et-glow: rgb(91 140 255 / 0.28);
     --bg-grad: radial-gradient(
         120% 80% at 50% -10%,
         #143528 0%,

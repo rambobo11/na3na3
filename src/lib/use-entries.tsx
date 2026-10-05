@@ -18,6 +18,7 @@ import {
   dailyTotals,
   loadDeletedIds,
   loadOwnerId,
+  filterByKind,
   loadEntries,
   rememberDeletedId,
   removeLastEntry,
@@ -41,7 +42,7 @@ import {
 } from "@/lib/supabase/sync";
 import { getSupabase } from "@/lib/supabase/client";
 import { useAuth } from "@/lib/use-auth";
-import type { Entry } from "@/lib/types";
+import type { Entry, EntryKind } from "@/lib/types";
 
 type SyncStatus = "local" | "syncing" | "synced" | "error";
 
@@ -50,11 +51,13 @@ type EntriesContextValue = {
   entries: Entry[];
   today: number;
   avg7: number;
+  todayCha7et: number;
+  avg7Cha7et: number;
   syncStatus: SyncStatus;
   pendingCount: number;
   lastError: string | null;
-  add: (count?: number) => void;
-  undo: () => void;
+  add: (count?: number, kind?: EntryKind) => void;
+  undo: (kind?: EntryKind) => void;
   refreshFromCloud: () => Promise<void>;
 };
 
@@ -379,9 +382,9 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
   }, [userId, queue.length, syncStatus, flushQueue]);
 
   const add = useCallback(
-    (count = 1) => {
+    (count = 1, kind: EntryKind = "na3") => {
       const before = entriesRef.current;
-      const next = addEntries(before, count);
+      const next = addEntries(before, count, kind);
       const added = next.slice(before.length);
       for (const entry of added) {
         recentInsertsRef.current.set(entry.id, entry);
@@ -399,25 +402,44 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
     [userId, flushQueue],
   );
 
-  const undo = useCallback(() => {
-    const { entries: next, removed } = removeLastEntry(entriesRef.current);
-    if (!removed) return;
+  const undo = useCallback(
+    (kind: EntryKind = "na3") => {
+      const { entries: next, removed } = removeLastEntry(
+        entriesRef.current,
+        kind,
+      );
+      if (!removed) return;
 
-    rememberDeletedId(removed.id);
-    recentDeletesRef.current.set(removed.id, Date.now());
-    recentInsertsRef.current.delete(removed.id);
-    setEntries(next);
+      rememberDeletedId(removed.id);
+      recentDeletesRef.current.set(removed.id, Date.now());
+      recentInsertsRef.current.delete(removed.id);
+      setEntries(next);
 
-    if (!userId) return;
+      if (!userId) return;
 
-    const ops = enqueueDelete(queueRef.current, removed.id);
-    queueRef.current = ops;
-    setQueue(ops);
-    void flushQueue(userId);
-  }, [userId, flushQueue]);
+      const ops = enqueueDelete(queueRef.current, removed.id);
+      queueRef.current = ops;
+      setQueue(ops);
+      void flushQueue(userId);
+    },
+    [userId, flushQueue],
+  );
 
-  const today = useMemo(() => countToday(entries), [entries]);
-  const avg7 = useMemo(() => average(dailyTotals(entries, 7)), [entries]);
+  const na3Entries = useMemo(() => filterByKind(entries, "na3"), [entries]);
+  const cha7etEntries = useMemo(
+    () => filterByKind(entries, "cha7et"),
+    [entries],
+  );
+  const today = useMemo(() => countToday(na3Entries), [na3Entries]);
+  const avg7 = useMemo(
+    () => average(dailyTotals(na3Entries, 7)),
+    [na3Entries],
+  );
+  const todayCha7et = useMemo(() => countToday(cha7etEntries), [cha7etEntries]);
+  const avg7Cha7et = useMemo(
+    () => average(dailyTotals(cha7etEntries, 7)),
+    [cha7etEntries],
+  );
 
   const value = useMemo(
     () => ({
@@ -425,6 +447,8 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       entries,
       today,
       avg7,
+      todayCha7et,
+      avg7Cha7et,
       syncStatus,
       pendingCount: queue.length,
       lastError,
@@ -438,6 +462,8 @@ export function EntriesProvider({ children }: { children: ReactNode }) {
       entries,
       today,
       avg7,
+      todayCha7et,
+      avg7Cha7et,
       syncStatus,
       queue.length,
       lastError,

@@ -6,7 +6,8 @@ create extension if not exists "pgcrypto";
 create table if not exists public.entries (
   id uuid primary key default gen_random_uuid(),
   logged_at timestamptz not null default now(),
-  user_id uuid not null references auth.users (id) on delete cascade
+  user_id uuid not null references auth.users (id) on delete cascade,
+  kind text not null default 'na3' check (kind in ('na3', 'cha7et'))
 );
 
 create index if not exists entries_user_logged_at_idx

@@ -17,6 +17,7 @@ import {
   countYesterday,
   dailyTotals,
   entriesForDay,
+  filterByKind,
   hourlyTotals,
   lowestHighest,
   movingAverage7,
@@ -52,55 +53,90 @@ export function StatsScreen() {
   const weekly = isWeeklyRange(range);
   const today = todayKey();
 
-  const dayTotals = useMemo(
-    () => (ready ? dailyTotals(entries, range) : []),
-    [ready, entries, range],
+  const na3 = useMemo(() => filterByKind(entries, "na3"), [entries]);
+  const cha7et = useMemo(() => filterByKind(entries, "cha7et"), [entries]);
+
+  const dayTotalsA = useMemo(
+    () => (ready ? dailyTotals(na3, range) : []),
+    [ready, na3, range],
   );
-  const weeks = useMemo(
-    () => (ready && weekly ? weeklyTotals(entries, range) : []),
-    [ready, entries, range, weekly],
+  const dayTotalsB = useMemo(
+    () => (ready ? dailyTotals(cha7et, range) : []),
+    [ready, cha7et, range],
+  );
+  const weeksA = useMemo(
+    () => (ready && weekly ? weeklyTotals(na3, range) : []),
+    [ready, na3, range, weekly],
+  );
+  const weeksB = useMemo(
+    () => (ready && weekly ? weeklyTotals(cha7et, range) : []),
+    [ready, cha7et, range, weekly],
   );
 
   const bars: ChartBar[] = useMemo(() => {
     if (!ready) return [];
     if (weekly) {
-      return weeks.map((w) => ({
-        id: w.start,
-        count: w.count,
-        label: formatMonthDay(w.start),
-        current: weekContainsDay(w, today),
-      }));
+      const aMap = new Map(weeksA.map((w) => [w.start, w]));
+      const bMap = new Map(weeksB.map((w) => [w.start, w]));
+      const starts = [
+        ...new Set([...aMap.keys(), ...bMap.keys()]),
+      ].sort();
+      return starts.map((start) => {
+        const a = aMap.get(start);
+        const b = bMap.get(start);
+        const week = a ?? b!;
+        return {
+          id: start,
+          count: a?.count ?? 0,
+          countB: b?.count ?? 0,
+          label: formatMonthDay(start),
+          current: weekContainsDay(week, today),
+        };
+      });
     }
-    return dayTotals.map((d) => ({
+    const bMap = new Map(dayTotalsB.map((d) => [d.date, d.count]));
+    return dayTotalsA.map((d) => ({
       id: d.date,
       count: d.count,
+      countB: bMap.get(d.date) ?? 0,
       label:
         range <= 7
           ? formatShortDay(d.date).split(" ")[0]
           : d.date.slice(8),
       current: d.date === today,
     }));
-  }, [ready, weekly, weeks, dayTotals, range, today]);
+  }, [ready, weekly, weeksA, weeksB, dayTotalsA, dayTotalsB, range, today]);
 
   const ma = useMemo(
     () =>
-      ready && !weekly ? movingAverage7(entries, dayTotals) : undefined,
-    [ready, weekly, entries, dayTotals],
+      ready && !weekly ? movingAverage7(na3, dayTotalsA) : undefined,
+    [ready, weekly, na3, dayTotalsA],
   );
 
-  const avg = useMemo(() => average(dayTotals), [dayTotals]);
-  const total = useMemo(() => sumTotals(dayTotals), [dayTotals]);
-  const { lowest, highest } = useMemo(
-    () => lowestHighest(dayTotals),
-    [dayTotals],
+  const avgA = useMemo(() => average(dayTotalsA), [dayTotalsA]);
+  const avgB = useMemo(() => average(dayTotalsB), [dayTotalsB]);
+  const totalA = useMemo(() => sumTotals(dayTotalsA), [dayTotalsA]);
+  const totalB = useMemo(() => sumTotals(dayTotalsB), [dayTotalsB]);
+  const { lowest: lowA, highest: highA } = useMemo(
+    () => lowestHighest(dayTotalsA),
+    [dayTotalsA],
   );
-  const todayCount = useMemo(
-    () => (ready ? countToday(entries) : 0),
-    [ready, entries],
+  const { lowest: lowB, highest: highB } = useMemo(
+    () => lowestHighest(dayTotalsB),
+    [dayTotalsB],
   );
-  const yesterdayCount = useMemo(
-    () => (ready ? countYesterday(entries) : 0),
-    [ready, entries],
+  const todayA = useMemo(() => (ready ? countToday(na3) : 0), [ready, na3]);
+  const todayB = useMemo(
+    () => (ready ? countToday(cha7et) : 0),
+    [ready, cha7et],
+  );
+  const yesterdayA = useMemo(
+    () => (ready ? countYesterday(na3) : 0),
+    [ready, na3],
+  );
+  const yesterdayB = useMemo(
+    () => (ready ? countYesterday(cha7et) : 0),
+    [ready, cha7et],
   );
 
   const detailDay = useMemo(() => {
@@ -112,30 +148,31 @@ export function StatsScreen() {
     () => (ready ? entriesForDay(entries, detailDay) : []),
     [ready, entries, detailDay],
   );
-  const hours = useMemo(
-    () => (ready ? hourlyTotals(entries, detailDay) : []),
-    [ready, entries, detailDay],
+  const hoursA = useMemo(
+    () => (ready ? hourlyTotals(na3, detailDay) : []),
+    [ready, na3, detailDay],
   );
-  const peakHour = useMemo(() => {
-    if (hours.length === 0) return null;
-    let best = hours[0];
-    for (const h of hours) {
-      if (h.count > best.count) best = h;
-    }
-    return best.count > 0 ? best : null;
-  }, [hours]);
+  const hoursB = useMemo(
+    () => (ready ? hourlyTotals(cha7et, detailDay) : []),
+    [ready, cha7et, detailDay],
+  );
 
   const selectedDetail = useMemo(() => {
     if (!selectedId) return null;
     if (weekly) {
-      const w = weeks.find((x) => x.start === selectedId);
-      if (!w) return null;
-      return `${formatWeekRange(w.start, w.end)} · ${w.count}`;
+      const a = weeksA.find((x) => x.start === selectedId);
+      const b = weeksB.find((x) => x.start === selectedId);
+      if (!a && !b) return null;
+      const start = a?.start ?? b!.start;
+      const end = a?.end ?? b!.end;
+      return `${formatWeekRange(start, end)} · ${a?.count ?? 0} / ${b?.count ?? 0}`;
     }
-    const d = dayTotals.find((x) => x.date === selectedId);
-    if (!d) return null;
-    return `${formatShortDay(d.date)} · ${d.count}`;
-  }, [selectedId, weekly, weeks, dayTotals]);
+    const a = dayTotalsA.find((x) => x.date === selectedId);
+    const b = dayTotalsB.find((x) => x.date === selectedId);
+    if (!a && !b) return null;
+    const date = a?.date ?? b!.date;
+    return `${formatShortDay(date)} · ${a?.count ?? 0} / ${b?.count ?? 0}`;
+  }, [selectedId, weekly, weeksA, weeksB, dayTotalsA, dayTotalsB]);
 
   function onRange(next: Range) {
     setRange(next);
@@ -150,6 +187,10 @@ export function StatsScreen() {
         </h1>
         <p className="mt-1 text-sm text-[var(--muted)]">
           {weekly ? "Weekly totals" : "Daily totals"}
+          {" · "}
+          <span className="text-[var(--accent)]">Na3Na3</span>
+          {" / "}
+          <span className="text-[var(--cha7et)]">cha7et</span>
         </p>
       </header>
 
@@ -185,31 +226,45 @@ export function StatsScreen() {
           {selectedDetail
             ? selectedDetail
             : weekly
-              ? "Bars = weekly · tap a bar"
-              : "Bars = daily · tap a day for times"}
+              ? "Green = Na3Na3 · blue = cha7et · tap a bar"
+              : "Green = Na3Na3 · blue = cha7et · tap a day"}
         </p>
       </div>
 
       <dl className="mb-10 grid grid-cols-2 gap-x-6 gap-y-6">
-        <Stat label="Today" value={ready ? String(todayCount) : "—"} />
-        <Stat
+        <DualStat
+          label="Today"
+          a={ready ? todayA : null}
+          b={ready ? todayB : null}
+        />
+        <DualStat
           label="Yesterday"
-          value={ready ? String(yesterdayCount) : "—"}
+          a={ready ? yesterdayA : null}
+          b={ready ? yesterdayB : null}
         />
-        <Stat
+        <DualStat
           label={rangeAvgLabel(range)}
-          value={ready ? formatAvg(avg) : "—"}
+          a={ready ? formatAvg(avgA) : null}
+          b={ready ? formatAvg(avgB) : null}
         />
-        <Stat label="Total" value={ready ? String(total) : "—"} />
-        <Stat
+        <DualStat
+          label="Total"
+          a={ready ? totalA : null}
+          b={ready ? totalB : null}
+        />
+        <DualStat
           label="Lowest"
-          value={ready && lowest ? String(lowest.count) : "—"}
-          hint={ready && lowest ? formatShortDay(lowest.date) : undefined}
+          a={ready && lowA ? String(lowA.count) : null}
+          b={ready && lowB ? String(lowB.count) : null}
+          hintA={ready && lowA ? formatShortDay(lowA.date) : undefined}
+          hintB={ready && lowB ? formatShortDay(lowB.date) : undefined}
         />
-        <Stat
+        <DualStat
           label="Highest"
-          value={ready && highest ? String(highest.count) : "—"}
-          hint={ready && highest ? formatShortDay(highest.date) : undefined}
+          a={ready && highA ? String(highA.count) : null}
+          b={ready && highB ? String(highB.count) : null}
+          hintA={ready && highA ? formatShortDay(highA.date) : undefined}
+          hintB={ready && highB ? formatShortDay(highB.date) : undefined}
         />
       </dl>
 
@@ -224,16 +279,10 @@ export function StatsScreen() {
         </div>
 
         {ready ? (
-          <HourlyChart hours={hours} />
+          <HourlyChart hours={hoursA} hoursB={hoursB} />
         ) : (
           <div className="h-24 animate-pulse rounded-lg bg-[var(--surface)]" />
         )}
-
-        <p className="mt-2 text-xs text-[var(--muted)]">
-          {peakHour
-            ? `Peak ${String(peakHour.hour).padStart(2, "0")}:00 · ${peakHour.count}`
-            : "No entries this day"}
-        </p>
       </section>
 
       <section>
@@ -242,13 +291,19 @@ export function StatsScreen() {
         </h2>
         {ready && dayEntries.length > 0 ? (
           <ul className="max-h-56 space-y-2 overflow-y-auto pr-1">
-            {[...dayEntries].reverse().map((e, i) => (
+            {[...dayEntries].reverse().map((e) => (
               <li
                 key={e.id}
                 className="flex items-center justify-between text-sm text-[var(--fg)]"
               >
-                <span className="tabular-nums text-[var(--muted)]">
-                  #{dayEntries.length - i}
+                <span
+                  className={`text-xs uppercase tracking-wider ${
+                    e.kind === "cha7et"
+                      ? "text-[var(--cha7et)]"
+                      : "text-[var(--accent)]"
+                  }`}
+                >
+                  {e.kind === "cha7et" ? "cha7et" : "Na3Na3"}
                 </span>
                 <span className="font-[family-name:var(--font-display)] text-base tabular-nums">
                   {formatTime(e.loggedAt)}
@@ -264,25 +319,35 @@ export function StatsScreen() {
   );
 }
 
-function Stat({
+function DualStat({
   label,
-  value,
-  hint,
+  a,
+  b,
+  hintA,
+  hintB,
 }: {
   label: string;
-  value: string;
-  hint?: string;
+  a: string | number | null;
+  b: string | number | null;
+  hintA?: string;
+  hintB?: string;
 }) {
   return (
     <div>
       <dt className="text-xs uppercase tracking-wider text-[var(--muted)]">
         {label}
       </dt>
-      <dd className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums text-[var(--fg)]">
-        {value}
+      <dd className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums">
+        <span className="text-[var(--accent)]">{a ?? "—"}</span>
+        <span className="mx-1 text-[var(--muted)]">/</span>
+        <span className="text-[var(--cha7et)]">{b ?? "—"}</span>
       </dd>
-      {hint ? (
-        <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p>
+      {hintA || hintB ? (
+        <p className="mt-0.5 text-xs text-[var(--muted)]">
+          {hintA ?? "—"}
+          {" · "}
+          {hintB ?? "—"}
+        </p>
       ) : null}
     </div>
   );

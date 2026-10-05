@@ -5,13 +5,15 @@ import type { HourTotal } from "@/lib/store";
 
 type Props = {
   hours: HourTotal[];
+  hoursB?: HourTotal[];
 };
 
-export function HourlyChart({ hours }: Props) {
-  const max = useMemo(
-    () => Math.max(1, ...hours.map((h) => h.count)),
-    [hours],
-  );
+export function HourlyChart({ hours, hoursB }: Props) {
+  const max = useMemo(() => {
+    const a = hours.map((h) => h.count);
+    const b = (hoursB ?? []).map((h) => h.count);
+    return Math.max(1, ...a, ...b);
+  }, [hours, hoursB]);
 
   const w = 320;
   const h = 112;
@@ -28,7 +30,6 @@ export function HourlyChart({ hours }: Props) {
   const barH = (count: number) => (count / max) * innerH;
   const barY = (count: number) => padT + innerH - barH(count);
 
-  // Clock ticks every 3 hours: 12am 3am 6am 9am 12pm 3pm 6pm 9pm
   const labelHours = [0, 3, 6, 9, 12, 15, 18, 21];
 
   return (
@@ -47,18 +48,32 @@ export function HourlyChart({ hours }: Props) {
         strokeWidth={1}
       />
       {hours.map((t) => {
-        const height = Math.max(t.count > 0 ? 2 : 0, barH(t.count));
+        const b = hoursB?.[t.hour]?.count ?? 0;
+        const heightA = Math.max(t.count > 0 ? 2 : 0, barH(t.count));
+        const heightB = Math.max(b > 0 ? 2 : 0, barH(b));
+        const wA = barW * 0.7;
+        const wB = barW * 0.7;
         return (
-          <rect
-            key={t.hour}
-            x={barX(t.hour)}
-            y={barY(t.count)}
-            width={barW}
-            height={height}
-            rx={Math.min(2, barW / 2)}
-            fill="var(--accent)"
-            opacity={t.count === 0 ? 0.15 : 0.9}
-          />
+          <g key={t.hour}>
+            <rect
+              x={barX(t.hour)}
+              y={barY(t.count)}
+              width={wA}
+              height={heightA}
+              rx={Math.min(2, wA / 2)}
+              fill="var(--accent)"
+              opacity={t.count === 0 ? 0.12 : 0.9}
+            />
+            <rect
+              x={barX(t.hour) + barW - wB}
+              y={barY(b)}
+              width={wB}
+              height={heightB}
+              rx={Math.min(2, wB / 2)}
+              fill="var(--cha7et)"
+              opacity={b === 0 ? 0.1 : 0.85}
+            />
+          </g>
         );
       })}
       {labelHours.map((hour) => (

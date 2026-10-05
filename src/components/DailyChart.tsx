@@ -5,6 +5,8 @@ import { useMemo } from "react";
 export type ChartBar = {
   id: string;
   count: number;
+  /** Second series (cha7et) — drawn overlapping in blue */
+  countB?: number;
   label: string;
   current?: boolean;
 };
@@ -18,7 +20,7 @@ type Props = {
 
 export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
   const max = useMemo(() => {
-    const counts = bars.map((t) => t.count);
+    const counts = bars.flatMap((t) => [t.count, t.countB ?? 0]);
     const ma = movingAvg ?? [];
     return Math.max(1, ...counts, ...ma.map((n) => Math.ceil(n)));
   }, [bars, movingAvg]);
@@ -70,10 +72,17 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
       />
 
       {bars.map((t, i) => {
-        const height = Math.max(t.count > 0 ? 3 : 0, barH(t.count));
+        const countB = t.countB ?? 0;
+        const heightA = Math.max(t.count > 0 ? 3 : 0, barH(t.count));
+        const heightB = Math.max(countB > 0 ? 3 : 0, barH(countB));
         const selected = selectedId === t.id;
         const showLabel =
           i % labelEvery === 0 || i === n - 1 || t.current === true;
+        // Slight horizontal overlap: green left-biased, blue right-biased
+        const wA = barW * 0.72;
+        const wB = barW * 0.72;
+        const xA = barX(i);
+        const xB = barX(i) + barW - wB;
         return (
           <g
             key={t.id}
@@ -96,17 +105,28 @@ export function DailyChart({ bars, movingAvg, selectedId, onSelect }: Props) {
               fill="transparent"
             />
             <rect
-              x={barX(i)}
+              x={xA}
               y={barY(t.count)}
-              width={barW}
-              height={height}
-              rx={Math.min(4, barW / 2)}
+              width={wA}
+              height={heightA}
+              rx={Math.min(4, wA / 2)}
               fill="var(--accent)"
               opacity={
-                selected ? 1 : t.current ? 0.95 : t.count === 0 ? 0.2 : 0.75
+                selected ? 1 : t.current ? 0.95 : t.count === 0 ? 0.18 : 0.8
               }
               stroke={selected || t.current ? "var(--fg)" : "none"}
               strokeWidth={selected || t.current ? 1.25 : 0}
+            />
+            <rect
+              x={xB}
+              y={barY(countB)}
+              width={wB}
+              height={heightB}
+              rx={Math.min(4, wB / 2)}
+              fill="var(--cha7et)"
+              opacity={
+                selected ? 0.95 : t.current ? 0.9 : countB === 0 ? 0.15 : 0.75
+              }
             />
             {showLabel ? (
               <text

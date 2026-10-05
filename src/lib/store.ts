@@ -1,4 +1,5 @@
-import type { DayTotal, Entry, WeekTotal } from "./types";
+import type { DayTotal, Entry, EntryKind, WeekTotal } from "./types";
+import { normalizeKind } from "./types";
 import {
   dayKey,
   lastNDayKeys,
@@ -39,6 +40,7 @@ export function loadEntries(): Entry[] {
         .map((s) => ({
           id: s.id,
           loggedAt: s.loggedAt ?? s.smokedAt ?? new Date().toISOString(),
+          kind: "na3" as const,
         }));
       saveEntries(migrated);
       localStorage.removeItem(LEGACY_KEY);
@@ -46,12 +48,22 @@ export function loadEntries(): Entry[] {
     }
     const parsed = JSON.parse(raw) as Entry[];
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(
-      (s) => s && typeof s.id === "string" && typeof s.loggedAt === "string",
-    );
+    return parsed
+      .filter(
+        (s) => s && typeof s.id === "string" && typeof s.loggedAt === "string",
+      )
+      .map((s) => ({
+        id: s.id,
+        loggedAt: s.loggedAt,
+        kind: normalizeKind((s as Entry).kind),
+      }));
   } catch {
     return [];
   }
+}
+
+export function filterByKind(entries: Entry[], kind: EntryKind): Entry[] {
+  return entries.filter((e) => e.kind === kind);
 }
 
 export function saveEntries(entries: Entry[]): void {
@@ -105,6 +117,7 @@ export function rememberDeletedId(id: string): void {
 export function addEntries(
   entries: Entry[],
   count: number,
+  kind: EntryKind = "na3",
   at = new Date(),
 ): Entry[] {
   const next = [...entries];
@@ -113,13 +126,17 @@ export function addEntries(
     next.push({
       id: newId(),
       loggedAt: new Date(at.getTime() + i * 1000).toISOString(),
+      kind,
     });
   }
   return next;
 }
 
-/** Remove the most recent entry from today (Paris). Falls back to last overall. */
-export function removeLastEntry(entries: Entry[]): {
+/** Remove the most recent entry of `kind` from today (Paris). Falls back to last of kind. */
+export function removeLastEntry(
+  entries: Entry[],
+  kind: EntryKind = "na3",
+): {
   entries: Entry[];
   removed: Entry | null;
 } {
@@ -127,12 +144,21 @@ export function removeLastEntry(entries: Entry[]): {
   const today = todayKey();
   let idx = -1;
   for (let i = entries.length - 1; i >= 0; i--) {
+    if (entries[i].kind !== kind) continue;
     if (dayKey(entries[i].loggedAt) === today) {
       idx = i;
       break;
     }
   }
-  if (idx === -1) idx = entries.length - 1;
+  if (idx === -1) {
+    for (let i = entries.length - 1; i >= 0; i--) {
+      if (entries[i].kind === kind) {
+        idx = i;
+        break;
+      }
+    }
+  }
+  if (idx === -1) return { entries, removed: null };
   const removed = entries[idx];
   return {
     entries: [...entries.slice(0, idx), ...entries.slice(idx + 1)],

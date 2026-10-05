@@ -1,28 +1,44 @@
 import type { Entry } from "@/lib/types";
+import { normalizeKind } from "@/lib/types";
 import { getSupabase } from "./client";
 
 type EntryRow = {
   id: string;
   logged_at: string;
   user_id: string;
+  kind?: string | null;
 };
 
 export function rowToEntry(row: EntryRow): Entry {
-  return { id: row.id, loggedAt: row.logged_at };
+  return {
+    id: row.id,
+    loggedAt: row.logged_at,
+    kind: normalizeKind(row.kind),
+  };
 }
 
 export async function fetchRemoteEntries(userId: string): Promise<Entry[]> {
   const supabase = getSupabase();
   if (!supabase) return [];
 
-  const { data, error } = await supabase
+  const withKind = await supabase
+    .from("entries")
+    .select("id, logged_at, user_id, kind")
+    .eq("user_id", userId)
+    .order("logged_at", { ascending: true });
+
+  if (!withKind.error) {
+    return (withKind.data as EntryRow[] | null)?.map(rowToEntry) ?? [];
+  }
+
+  // Pre-migration DBs without `kind` column.
+  const legacy = await supabase
     .from("entries")
     .select("id, logged_at, user_id")
     .eq("user_id", userId)
     .order("logged_at", { ascending: true });
-
-  if (error) throw error;
-  return (data as EntryRow[] | null)?.map(rowToEntry) ?? [];
+  if (legacy.error) throw withKind.error;
+  return (legacy.data as EntryRow[] | null)?.map(rowToEntry) ?? [];
 }
 
 export async function insertRemoteEntries(
@@ -38,6 +54,7 @@ export async function insertRemoteEntries(
       id: s.id,
       logged_at: s.loggedAt,
       user_id: userId,
+      kind: s.kind,
     })),
   );
   // Idempotent flush: duplicate primary key means already synced

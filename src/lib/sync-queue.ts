@@ -1,4 +1,5 @@
 import type { Entry } from "@/lib/types";
+import { normalizeKind } from "@/lib/types";
 
 const QUEUE_KEY = "na3na3:queue";
 
@@ -13,7 +14,14 @@ export function loadQueue(): PendingOp[] {
     if (!raw) return [];
     const parsed = JSON.parse(raw) as PendingOp[];
     if (!Array.isArray(parsed)) return [];
-    return parsed.filter(isPendingOp);
+    return parsed.filter(isPendingOp).map((op) =>
+      op.type === "insert"
+        ? {
+            ...op,
+            entry: { ...op.entry, kind: normalizeKind(op.entry.kind) },
+          }
+        : op,
+    );
   } catch {
     return [];
   }
