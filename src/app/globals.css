@@ -124,12 +124,29 @@ button {
   }
 }
 
+@keyframes na3-btn-ring-cha7et {
+  0% {
+    box-shadow: 0 12px 36px var(--cha7et-glow);
+    transform: scale(0.96);
+  }
+  55% {
+    box-shadow:
+      0 0 0 12px color-mix(in srgb, var(--cha7et) 22%, transparent),
+      0 12px 36px var(--cha7et-glow);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 12px 36px var(--cha7et-glow);
+    transform: scale(1);
+  }
+}
+
 @keyframes na3-flash {
   0% {
     opacity: 0;
   }
   30% {
-    opacity: 0.18;
+    opacity: 0.16;
   }
   100% {
     opacity: 0;
@@ -144,12 +161,24 @@ button {
   animation: na3-btn-ring 320ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-.na3-tap-flash {
+.na3-btn-pulse-cha7et {
+  animation: na3-btn-ring-cha7et 320ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.na3-tap-flash,
+.na3-tap-flash-cha7et {
   pointer-events: none;
   position: fixed;
   inset: 0;
-  background: var(--accent);
   opacity: 0;
   z-index: 30;
   animation: na3-flash 280ms ease-out;
+}
+
+.na3-tap-flash {
+  background: var(--accent);
+}
+
+.na3-tap-flash-cha7et {
+  background: var(--cha7et);
 }

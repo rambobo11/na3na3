@@ -397,12 +397,12 @@ function HeroCount({
 }) {
   const color = tone === "cha7et" ? "var(--cha7et)" : "var(--accent)";
   return (
-    <div className="rounded-3xl bg-[var(--surface)]/70 px-4 py-4">
-      <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+    <div>
+      <p className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--muted)]">
         {label}
       </p>
       <p
-        className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums tracking-tight"
+        className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none"
         style={{ color }}
       >
         {value === null ? "—" : value}

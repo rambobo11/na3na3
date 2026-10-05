@@ -24,8 +24,8 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border)] bg-[var(--bg)]/92 backdrop-blur-md"
-      style={{ paddingBottom: "max(0.5rem, env(safe-area-inset-bottom))" }}
+      className="fixed inset-x-0 bottom-0 z-20 border-t border-[var(--border)]/80 bg-[var(--bg)]/88 backdrop-blur-xl"
+      style={{ paddingBottom: "max(0.4rem, env(safe-area-inset-bottom))" }}
     >
       <div className="mx-auto flex max-w-md items-stretch px-[max(0px,env(safe-area-inset-left))] pr-[max(0px,env(safe-area-inset-right))]">
         {links.map(({ href, label }) => {
@@ -35,16 +35,22 @@ export function BottomNav() {
             <Link
               key={href}
               href={href}
-              className={`relative flex min-h-12 flex-1 items-center justify-center py-3 text-[15px] tracking-wide transition-colors ${
+              className={`relative flex min-h-[3.25rem] flex-1 items-center justify-center py-2.5 text-[15px] tracking-wide transition-colors ${
                 active
-                  ? "text-[var(--fg)] font-semibold"
+                  ? "font-semibold text-[var(--fg)]"
                   : "text-[var(--muted)] active:text-[var(--fg)]"
               }`}
             >
-              {label}
+              <span
+                className={`rounded-full px-3.5 py-1.5 ${
+                  active ? "bg-[var(--surface)]" : ""
+                }`}
+              >
+                {label}
+              </span>
               {showDot ? (
                 <span
-                  className="absolute right-[calc(50%-1.6rem)] top-2.5 h-1.5 w-1.5 rounded-full bg-[var(--accent)]"
+                  className="absolute right-[calc(50%-1.75rem)] top-2 h-1.5 w-1.5 rounded-full bg-[var(--accent)]"
                   aria-hidden
                 />
               ) : null}
