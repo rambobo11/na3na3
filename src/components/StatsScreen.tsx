@@ -13,7 +13,7 @@ import {
   moneyForCha7et,
   moneyForNa3,
   moneyTotal,
-  packsForNa3,
+  packsForCha7et,
 } from "@/lib/costs";
 import {
   formatAvg,
@@ -261,9 +261,9 @@ export function StatsScreen() {
           Argent perdu
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-          Na3Na3 = cig. {formatEuro(TOBACCO_PACK_EUR)} / {CIGS_PER_PACK} (
-          {formatEuro(NA3_EUR)} pièce) · cha7et = {formatEuro(CHA7ET_EUR)} /
-          joint
+          Na3Na3 = joint {formatEuro(NA3_EUR)} · cha7et = cig.{" "}
+          {formatEuro(TOBACCO_PACK_EUR)} / {CIGS_PER_PACK} (
+          {formatEuro(CHA7ET_EUR)} pièce)
         </p>
 
         <div className="mt-5">
@@ -275,16 +275,16 @@ export function StatsScreen() {
           </p>
           <p className="mt-2 text-sm tabular-nums text-[var(--muted)]">
             <span className="text-[var(--accent)]">
-              {ready ? formatEuro(moneyAllNa3) : "—"} cig.
+              {ready ? formatEuro(moneyAllNa3) : "—"} joints
             </span>
             {" · "}
             <span className="text-[var(--cha7et)]">
-              {ready ? formatEuro(moneyAllCha7et) : "—"} cha7et
+              {ready ? formatEuro(moneyAllCha7et) : "—"} cig.
             </span>
-            {ready && na3.length > 0 ? (
+            {ready && cha7et.length > 0 ? (
               <>
                 {" · "}
-                {formatPacks(packsForNa3(na3.length))}
+                {formatPacks(packsForCha7et(cha7et.length))}
               </>
             ) : null}
           </p>

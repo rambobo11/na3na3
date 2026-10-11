@@ -1,13 +1,13 @@
-/** Normal cigarettes (Na3Na3): pack price ÷ cigarettes per pack. */
+/** Na3Na3 = joints, all-in estimate. */
+export const NA3_EUR = 2.5;
+
+/** cha7et = normal cigarettes: pack price ÷ cigarettes per pack. */
 export const TOBACCO_PACK_EUR = 3.6;
 export const CIGS_PER_PACK = 20;
-export const NA3_EUR = TOBACCO_PACK_EUR / CIGS_PER_PACK; // 0.18 €
-
-/** cha7et (joints), all-in estimate. */
-export const CHA7ET_EUR = 2.5;
+export const CHA7ET_EUR = TOBACCO_PACK_EUR / CIGS_PER_PACK; // 0.18 €
 
 /**
- * Joint estimate breakdown (informational):
+ * Joint (Na3Na3) estimate breakdown (informational):
  * - tobacco pack ≈ 3.60 €
  * - papers ≈ 2.00–2.50 €
  * - herb: no exact figure → folded into 2.50 € / joint
@@ -29,8 +29,8 @@ export function moneyTotal(na3Count: number, cha7etCount: number): number {
   return moneyForNa3(na3Count) + moneyForCha7et(cha7etCount);
 }
 
-/** How many tobacco packs the cigarette count represents. */
-export function packsForNa3(count: number): number {
+/** How many cigarette packs the cha7et count represents. */
+export function packsForCha7et(count: number): number {
   return Math.max(0, count) / CIGS_PER_PACK;
 }
 
