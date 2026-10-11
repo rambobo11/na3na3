@@ -5,9 +5,7 @@ import { DailyChart, type ChartBar } from "@/components/DailyChart";
 import { HourlyChart } from "@/components/HourlyChart";
 import {
   CHA7ET_EUR,
-  CIGS_PER_PACK,
   NA3_EUR,
-  TOBACCO_PACK_EUR,
   formatEuro,
   formatPacks,
   moneyForCha7et,
@@ -58,8 +56,8 @@ function isWeeklyRange(range: Range): boolean {
 }
 
 function rangeAvgLabel(range: Range): string {
-  if (range === 365) return "1y avg";
-  return `${range}d avg`;
+  if (range === 365) return "moy. 1 an";
+  return `moy. ${range}j`;
 }
 
 export function StatsScreen() {
@@ -272,16 +270,16 @@ export function StatsScreen() {
         </div>
       </header>
 
-      {/* Today hero */}
-      <section className="mb-6 grid grid-cols-2 gap-3">
+      {/* Today */}
+      <section className="mb-5 grid grid-cols-2 gap-3">
         <HeroCount
-          label="Na3Na3 · joints"
+          label="joints"
           value={ready ? todayA : null}
           tone="na3"
           goalMax={goals.na3}
         />
         <HeroCount
-          label="cha7et · cig."
+          label="cig."
           value={ready ? todayB : null}
           tone="cha7et"
           goalMax={goals.cha7et}
@@ -289,126 +287,96 @@ export function StatsScreen() {
       </section>
 
       {(goals.na3 !== null || goals.cha7et !== null) && ready ? (
-        <p className="mb-6 text-sm leading-relaxed text-[var(--muted)]">
-          Objectif :{" "}
-          {goals.na3 !== null ? (
-            <span className="text-[var(--accent)]">
-              {todayA}/{goals.na3} joints
-              {goalStatus(todayA, goals.na3) === "over"
-                ? " · dépassé"
-                : goalStatus(todayA, goals.na3) === "at"
-                  ? " · atteint"
-                  : ""}
-            </span>
-          ) : (
-            <span className="text-[var(--accent)]">joints off</span>
-          )}
+        <p className="mb-5 text-xs tabular-nums text-[var(--muted)]">
+          Objectif{" "}
+          <span className="text-[var(--accent)]">
+            {goals.na3 !== null ? `${todayA}/${goals.na3}` : "—"}
+            {goals.na3 !== null && goalStatus(todayA, goals.na3) === "over"
+              ? " !"
+              : goals.na3 !== null && goalStatus(todayA, goals.na3) === "at"
+                ? " ="
+                : ""}
+          </span>
           {" · "}
-          {goals.cha7et !== null ? (
-            <span className="text-[var(--cha7et)]">
-              {todayB}/{goals.cha7et} cig.
-              {goalStatus(todayB, goals.cha7et) === "over"
-                ? " · dépassé"
-                : goalStatus(todayB, goals.cha7et) === "at"
-                  ? " · atteint"
-                  : ""}
-            </span>
-          ) : (
-            <span className="text-[var(--cha7et)]">cig. off</span>
-          )}
+          <span className="text-[var(--cha7et)]">
+            {goals.cha7et !== null ? `${todayB}/${goals.cha7et}` : "—"}
+            {goals.cha7et !== null &&
+            goalStatus(todayB, goals.cha7et) === "over"
+              ? " !"
+              : goals.cha7et !== null &&
+                  goalStatus(todayB, goals.cha7et) === "at"
+                ? " ="
+                : ""}
+          </span>
         </p>
       ) : null}
 
-      {/* Smoke-free streak */}
-      <section className="mb-8">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
-          Jours sans
-        </h2>
-        <p className="mt-1 text-xs text-[var(--muted)]">
-          Jours d’affilée à 0 joint et 0 cigarette
-        </p>
-        <div className="mt-4 grid grid-cols-2 gap-5">
-          <div>
-            <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
-              En cours
-            </p>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--accent)]">
-              {ready ? freeStreak : "—"}
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              {ready && freeStreak === 0
-                ? todayA + todayB > 0
-                  ? "tu as loggé aujourd’hui — streak à 0"
-                  : "passe une journée à 0 pour démarrer"
-                : ready
-                  ? freeStreak === 1
-                    ? "jour"
-                    : "jours"
-                  : null}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
-              Record
-            </p>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--fg)]">
-              {ready ? bestFreeStreak : "—"}
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">meilleure série</p>
-          </div>
-        </div>
-
-        <div className="mt-6">
-          <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
-            Argent économisé pendant le streak
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
-            {ready && freeStreak > 0 ? formatEuro(moneySavedStreak) : formatEuro(0)}
-          </p>
-          <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-            {ready && freeStreak > 0
-              ? `~${formatEuro(moneyTotal(avg7A, avg7B))} / jour × ${freeStreak} (moy. 7j)`
-              : "Apparait dès que tu as au moins 1 jour sans"}
-          </p>
-        </div>
+      {/* Streak + saved — same vocabulary as Home */}
+      <section className="mb-7 grid grid-cols-3 gap-2 text-center">
+        <StatChip
+          label="sans"
+          value={ready ? String(freeStreak) : "—"}
+          hint={
+            ready && freeStreak === 0
+              ? todayA + todayB > 0
+                ? "loggé"
+                : "à démarrer"
+              : "jours"
+          }
+          emphasize={freeStreak > 0}
+        />
+        <StatChip
+          label="record"
+          value={ready ? String(bestFreeStreak) : "—"}
+          hint="meilleur"
+        />
+        <StatChip
+          label="économisé"
+          value={
+            ready && freeStreak > 0
+              ? formatEuro(moneySavedStreak)
+              : formatEuro(0)
+          }
+          hint={
+            ready && freeStreak > 0
+              ? `~${formatEuro(moneyTotal(avg7A, avg7B))}/j`
+              : "streak"
+          }
+          emphasize={moneySavedStreak > 0}
+        />
       </section>
 
-      {/* Money lost — total first, then split */}
-      <section className="mb-8">
-        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
-          Argent perdu
-        </h2>
-        <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-          Na3Na3 = joint {formatEuro(NA3_EUR)} · cha7et = cig.{" "}
-          {formatEuro(TOBACCO_PACK_EUR)} / {CIGS_PER_PACK} (
-          {formatEuro(CHA7ET_EUR)} pièce)
-        </p>
-
-        <div className="mt-5">
-          <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
-            Total perdu
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--fg)]">
-            {ready ? formatEuro(moneyAll) : "—"}
-          </p>
-          <p className="mt-2 text-sm tabular-nums text-[var(--muted)]">
-            <span className="text-[var(--accent)]">
-              {ready ? formatEuro(moneyAllNa3) : "—"} joints
-            </span>
-            {" · "}
-            <span className="text-[var(--cha7et)]">
-              {ready ? formatEuro(moneyAllCha7et) : "—"} cig.
-            </span>
-            {ready && cha7et.length > 0 ? (
-              <>
-                {" · "}
-                {formatPacks(packsForCha7et(cha7et.length))}
-              </>
-            ) : null}
+      {/* Money */}
+      <section className="mb-7">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
+            Argent perdu
+          </h2>
+          <p className="text-[10px] text-[var(--muted)]">
+            {formatEuro(NA3_EUR)}/j · {formatEuro(CHA7ET_EUR)}/cig
           </p>
         </div>
 
-        <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5">
+        <p className="mt-3 font-[family-name:var(--font-display)] text-[2.5rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--fg)]">
+          {ready ? formatEuro(moneyAll) : "—"}
+        </p>
+        <p className="mt-1.5 text-sm tabular-nums text-[var(--muted)]">
+          <span className="text-[var(--accent)]">
+            {ready ? formatEuro(moneyAllNa3) : "—"}
+          </span>
+          {" · "}
+          <span className="text-[var(--cha7et)]">
+            {ready ? formatEuro(moneyAllCha7et) : "—"}
+          </span>
+          {ready && cha7et.length > 0 ? (
+            <>
+              {" · "}
+              {formatPacks(packsForCha7et(cha7et.length))}
+            </>
+          ) : null}
+        </p>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
           <MoneyPeriod
             label="Aujourd’hui"
             total={ready ? formatEuro(moneyToday) : "—"}
@@ -416,13 +384,13 @@ export function StatsScreen() {
             cha7et={ready ? formatEuro(moneyTodayCha7et) : "—"}
           />
           <MoneyPeriod
-            label={range === 365 ? "1 an" : `${range} jours`}
+            label={range === 365 ? "1 an" : `${range}j`}
             total={ready ? formatEuro(moneyRange) : "—"}
             na3={ready ? formatEuro(moneyRangeNa3) : "—"}
             cha7et={ready ? formatEuro(moneyRangeCha7et) : "—"}
           />
           <MoneyPeriod
-            label="Rythme / mois"
+            label="/ mois"
             total={
               ready && moneyMonthPace > 0 ? formatEuro(moneyMonthPace) : "—"
             }
@@ -432,25 +400,19 @@ export function StatsScreen() {
             cha7et={
               ready && avgB > 0 ? formatEuro(moneyForCha7et(avgB * 30)) : "—"
             }
-            hint={
-              ready && (avgA > 0 || avgB > 0)
-                ? "si tu continues à ce rythme"
-                : undefined
-            }
           />
         </div>
 
         {ready && moneyMonthPace > 0 ? (
-          <p className="mt-5 text-sm leading-relaxed text-[var(--muted)]">
-            Si tu arrêtes à ce rythme, tu{" "}
+          <p className="mt-4 text-sm leading-relaxed text-[var(--muted)]">
+            Stop à ce rythme →{" "}
             <span className="font-medium text-[var(--accent)]">
-              gardes ~{formatEuro(moneyMonthPace)}
-            </span>{" "}
-            par mois —{" "}
+              ~{formatEuro(moneyMonthPace)}/mois
+            </span>
+            {" · "}
             <span className="font-medium text-[var(--fg)]">
-              ~{formatEuro(moneyMonthPace * 12)}
-            </span>{" "}
-            par an.
+              ~{formatEuro(moneyMonthPace * 12)}/an
+            </span>
           </p>
         ) : null}
       </section>
@@ -474,8 +436,8 @@ export function StatsScreen() {
       </div>
 
       <p className="mb-3 text-xs text-[var(--muted)]">
-        {weekly ? "Weekly totals" : "Daily totals"}
-        {ma ? " · line = 7-day avg" : ""}
+        {weekly ? "Totaux / semaine" : "Totaux / jour"}
+        {ma ? " · courbe = moy. 7j" : ""}
       </p>
 
       <section className="mb-8">
@@ -507,7 +469,7 @@ export function StatsScreen() {
             </p>
           ) : (
             <p className="text-xs text-[var(--muted)]">
-              Tap a bar to compare
+              Tape une barre pour comparer
             </p>
           )}
         </div>
@@ -516,7 +478,7 @@ export function StatsScreen() {
       {/* Compact KPI grid */}
       <section className="mb-10 grid grid-cols-2 gap-x-5 gap-y-5">
         <CompactDual
-          label="Yesterday"
+          label="Hier"
           a={ready ? yesterdayA : null}
           b={ready ? yesterdayB : null}
         />
@@ -531,7 +493,7 @@ export function StatsScreen() {
           b={ready ? totalB : null}
         />
         <CompactDual
-          label="Peak day"
+          label="Pic"
           a={ready && highA ? String(highA.count) : null}
           b={ready && highB ? String(highB.count) : null}
           hint={
@@ -546,7 +508,7 @@ export function StatsScreen() {
           }
         />
         <CompactDual
-          label="Lowest day"
+          label="Creux"
           a={ready && lowA ? String(lowA.count) : null}
           b={ready && lowB ? String(lowB.count) : null}
           hint={
@@ -611,7 +573,7 @@ export function StatsScreen() {
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-[var(--muted)]">No times yet</p>
+          <p className="text-sm text-[var(--muted)]">Pas encore d’heures</p>
         )}
       </section>
     </div>
@@ -628,6 +590,34 @@ function LegendDot({ color, label }: { color: string; label: string }) {
       />
       <span className="text-[var(--fg)]">{label}</span>
     </span>
+  );
+}
+
+function StatChip({
+  label,
+  value,
+  hint,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-[var(--surface)]/55 px-2 py-3">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
+        {label}
+      </p>
+      <p
+        className={`mt-1 font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums tracking-tight ${
+          emphasize ? "text-[var(--accent)]" : "text-[var(--fg)]"
+        }`}
+      >
+        {value}
+      </p>
+      <p className="mt-0.5 text-[10px] text-[var(--muted)]">{hint}</p>
+    </div>
   );
 }
 
@@ -696,36 +686,25 @@ function MoneyPeriod({
   total,
   na3,
   cha7et,
-  hint,
-  highlight,
 }: {
   label: string;
   total: string;
   na3: string;
   cha7et: string;
-  hint?: string;
-  highlight?: boolean;
 }) {
   return (
-    <div>
-      <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+    <div className="rounded-2xl bg-[var(--surface)]/40 px-2 py-2.5 text-center">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
         {label}
       </p>
-      <p
-        className={`mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight ${
-          highlight ? "text-[var(--accent)]" : "text-[var(--fg)]"
-        }`}
-      >
+      <p className="mt-1 font-[family-name:var(--font-display)] text-base font-semibold tabular-nums tracking-tight text-[var(--fg)]">
         {total}
       </p>
-      <p className="mt-1 text-xs tabular-nums leading-relaxed text-[var(--muted)]">
+      <p className="mt-0.5 text-[10px] tabular-nums text-[var(--muted)]">
         <span className="text-[var(--accent)]">{na3}</span>
-        {" + "}
+        {" · "}
         <span className="text-[var(--cha7et)]">{cha7et}</span>
       </p>
-      {hint ? (
-        <p className="mt-1 text-xs text-[var(--muted)]">{hint}</p>
-      ) : null}
     </div>
   );
 }

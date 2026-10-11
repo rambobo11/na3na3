@@ -11,11 +11,12 @@ import {
   moneySavedDuringStreak,
   moneyTotal,
 } from "@/lib/costs";
-import { formatAvg, formatTime, todayKey } from "@/lib/dates";
+import { formatTime, todayKey } from "@/lib/dates";
 import {
   goalForKind,
   goalStatus,
   loadGoals,
+  saveGoals,
   statusMessage,
   type DailyGoals,
   type GoalStatus,
@@ -26,6 +27,7 @@ import {
   entriesForDay,
   filterByKind,
 } from "@/lib/store";
+import { homeTip, suggestedCeilings } from "@/lib/tips";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
 import type { EntryKind } from "@/lib/types";
@@ -87,12 +89,48 @@ export function HomeScreen() {
       ready ? moneySavedDuringStreak(freeStreak, avg7, avg7Cha7et) : 0,
     [ready, freeStreak, avg7, avg7Cha7et],
   );
+  const moneyToday = useMemo(
+    () => (ready ? moneyTotal(today, todayCha7et) : 0),
+    [ready, today, todayCha7et],
+  );
 
   const statusNa3 = goalStatus(today, goals.na3);
   const statusCha7et = goalStatus(todayCha7et, goals.cha7et);
+  const hasAnyGoal = goals.na3 !== null || goals.cha7et !== null;
+  const suggest = suggestedCeilings(avg7, avg7Cha7et);
 
-  const suggestNa3 = Math.max(1, Math.floor(avg7) || 2);
-  const suggestCha7et = Math.max(1, Math.floor(avg7Cha7et) || 4);
+  const tip = useMemo(() => {
+    if (!ready || goalBanner) return null;
+    return homeTip({
+      freeStreak,
+      moneySavedStreak,
+      moneyToday,
+      avg7Na3: avg7,
+      avg7Cha7et,
+      statusNa3,
+      statusCha7et,
+      hasGoals: hasAnyGoal,
+      todayTotal: today + todayCha7et,
+      roomNa3: goals.na3 !== null ? Math.max(0, goals.na3 - today) : null,
+      roomCha7et:
+        goals.cha7et !== null ? Math.max(0, goals.cha7et - todayCha7et) : null,
+    });
+  }, [
+    ready,
+    goalBanner,
+    freeStreak,
+    moneySavedStreak,
+    moneyToday,
+    avg7,
+    avg7Cha7et,
+    statusNa3,
+    statusCha7et,
+    hasAnyGoal,
+    today,
+    todayCha7et,
+    goals.na3,
+    goals.cha7et,
+  ]);
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -177,9 +215,21 @@ export function HomeScreen() {
     [undo],
   );
 
+  function applyReduceOne() {
+    const next = {
+      na3: suggest.na3,
+      cha7et: suggest.cha7et,
+    };
+    saveGoals(next);
+    setGoals(next);
+    haptic("medium");
+    setGoalBanner(
+      `Objectif réglé · max ${next.na3} joints / ${next.cha7et} cig. (moy. −1)`,
+    );
+  }
+
   const canUndoNa3 = ready && filterByKind(entries, "na3").length > 0;
   const canUndoCha7et = ready && filterByKind(entries, "cha7et").length > 0;
-  const hasAnyGoal = goals.na3 !== null || goals.cha7et !== null;
 
   return (
     <div className="app-screen relative flex flex-col">
@@ -212,215 +262,140 @@ export function HomeScreen() {
       {configured && !user ? (
         <Link
           href="/account"
-          className="mt-4 block rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)]"
+          className="mt-3 block rounded-2xl border border-[var(--border)] px-4 py-3 text-sm text-[var(--muted)]"
         >
-          Create an account in{" "}
-          <span className="font-medium text-[var(--fg)]">Login</span> — same
-          password syncs Mac and iPhone.
+          Crée un compte dans{" "}
+          <span className="font-medium text-[var(--fg)]">Login</span> pour
+          sync Mac ↔ iPhone.
         </Link>
       ) : null}
 
       {goalBanner ? (
         <div
-          className="mt-3 rounded-2xl border border-[var(--border)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--fg)]"
+          className="mt-3 rounded-2xl bg-[var(--surface)] px-4 py-3 text-sm text-[var(--fg)]"
           role="status"
         >
           {goalBanner}
         </div>
       ) : null}
 
-      <main className="flex flex-1 flex-col items-center justify-center gap-5">
-        <div className="grid w-full max-w-sm grid-cols-2 gap-x-5">
-          <CountColumn
-            kind="na3"
-            count={ready ? today : null}
-            avg={ready ? formatAvg(avg7) : "—"}
-            last={
-              lastNa3
-                ? `last ${formatTime(lastNa3.loggedAt)}`
-                : ready
-                  ? "no log yet"
-                  : "—"
-            }
-            money={ready ? formatEuro(moneyForNa3(today)) : "—"}
-            unitPrice="2,50 €"
-            title="Na3Na3 · joints"
+      <main className="mx-auto flex w-full max-w-sm flex-1 flex-col justify-center gap-5 py-3">
+        {/* 1. Counts + actions */}
+        <section className="grid grid-cols-2 gap-x-5">
+          <TapLane
             tone="na3"
-            pop={popKind === "na3" && popKey > 0}
-            popKey={popKey}
+            title="joints"
+            count={ready ? today : null}
+            money={ready ? formatEuro(moneyForNa3(today)) : null}
+            last={lastNa3 ? formatTime(lastNa3.loggedAt) : null}
             goalMax={goals.na3}
             status={statusNa3}
-          />
-          <CountColumn
-            kind="cha7et"
-            count={ready ? todayCha7et : null}
-            avg={ready ? formatAvg(avg7Cha7et) : "—"}
-            last={
-              lastCha7et
-                ? `last ${formatTime(lastCha7et.loggedAt)}`
-                : ready
-                  ? "no log yet"
-                  : "—"
-            }
-            money={ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"}
-            unitPrice="0,18 €"
-            title="cha7et · cig."
-            tone="cha7et"
-            pop={popKind === "cha7et" && popKey > 0}
+            pop={popKind === "na3" && popKey > 0}
             popKey={popKey}
+            pulsing={pulsing === "na3"}
+            canUndo={canUndoNa3}
+            btnClass="h-[8.5rem] w-[8.5rem] text-5xl"
+            onPlusDown={onPlusDown("na3")}
+            onPlusUp={onPlusUp("na3")}
+            onPlusCancel={onPlusCancel}
+            onMinus={() => onMinus("na3")}
+            onPulseEnd={() => setPulsing(null)}
+          />
+          <TapLane
+            tone="cha7et"
+            title="cig."
+            count={ready ? todayCha7et : null}
+            money={ready ? formatEuro(moneyForCha7et(todayCha7et)) : null}
+            last={lastCha7et ? formatTime(lastCha7et.loggedAt) : null}
             goalMax={goals.cha7et}
             status={statusCha7et}
+            pop={popKind === "cha7et" && popKey > 0}
+            popKey={popKey}
+            pulsing={pulsing === "cha7et"}
+            canUndo={canUndoCha7et}
+            btnClass="h-[6rem] w-[6rem] text-[1.75rem]"
+            onPlusDown={onPlusDown("cha7et")}
+            onPlusUp={onPlusUp("cha7et")}
+            onPlusCancel={onPlusCancel}
+            onMinus={() => onMinus("cha7et")}
+            onPulseEnd={() => setPulsing(null)}
           />
-        </div>
+        </section>
 
-        <button
-          type="button"
-          onClick={() => setGoalsOpen(true)}
-          className="w-full max-w-sm rounded-2xl border border-[var(--border)] px-4 py-3 text-left transition-colors active:bg-[var(--surface)]"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
-                Objectif du jour
+        {/* 2. Streak / money — one glance */}
+        <section className="grid grid-cols-3 gap-1.5 text-center">
+          <Insight
+            label="sans"
+            value={ready ? String(freeStreak) : "—"}
+            hint="jours"
+            emphasize={freeStreak > 0}
+          />
+          <Insight
+            label="économisé"
+            value={
+              ready && freeStreak > 0
+                ? formatEuro(moneySavedStreak)
+                : formatEuro(0)
+            }
+            hint="streak"
+            emphasize={moneySavedStreak > 0}
+          />
+          <Insight
+            label="perdu"
+            value={ready ? formatEuro(moneyToday) : "—"}
+            hint="aujourd’hui"
+          />
+        </section>
+
+        {/* 3. Goal row (single surface) */}
+        <section>
+          <button
+            type="button"
+            onClick={() => setGoalsOpen(true)}
+            className="flex w-full items-center justify-between gap-3 rounded-2xl bg-[var(--surface)]/70 px-4 py-2.5 text-left active:opacity-80"
+          >
+            <div className="min-w-0">
+              <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                Objectif
               </p>
-              <p className="mt-1 text-sm text-[var(--fg)]">
+              <p className="mt-0.5 truncate text-sm text-[var(--fg)]">
                 {hasAnyGoal ? (
                   <>
                     <span className="text-[var(--accent)]">
-                      {goals.na3 !== null
-                        ? `${today}/${goals.na3} joints`
-                        : "joints off"}
+                      {goals.na3 !== null ? `${today}/${goals.na3}` : "—"}
                     </span>
                     {" · "}
                     <span className="text-[var(--cha7et)]">
                       {goals.cha7et !== null
-                        ? `${todayCha7et}/${goals.cha7et} cig.`
-                        : "cig. off"}
+                        ? `${todayCha7et}/${goals.cha7et}`
+                        : "—"}
                     </span>
                   </>
                 ) : (
-                  "Définir un plafond pour t’aider à réduire"
+                  "Pas encore de plafond"
                 )}
               </p>
             </div>
             <span className="shrink-0 text-sm text-[var(--muted)]">Éditer</span>
-          </div>
-        </button>
+          </button>
 
-        {ready && freeStreak > 0 ? (
-          <div className="w-full max-w-sm text-center">
-            <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--accent)]">
-              jours sans
-            </p>
-            <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums tracking-tight text-[var(--accent)]">
-              {freeStreak}
-            </p>
-            <p className="mt-1 text-xs text-[var(--muted)]">
-              {freeStreak === 1
-                ? "1 jour sans joint ni cigarette"
-                : `${freeStreak} jours sans joint ni cigarette`}
-            </p>
-            {moneySavedStreak > 0 ? (
-              <>
-                <p className="mt-3 text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
-                  argent économisé
-                </p>
-                <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
-                  {formatEuro(moneySavedStreak)}
-                </p>
-                <p className="mt-0.5 text-xs text-[var(--muted)]">
-                  vs ta moyenne 7j
-                </p>
-              </>
-            ) : null}
-          </div>
+          {!hasAnyGoal && ready && (avg7 > 0 || avg7Cha7et > 0) ? (
+            <button
+              type="button"
+              onClick={applyReduceOne}
+              className="mt-1.5 w-full rounded-2xl px-4 py-2 text-sm text-[var(--muted)] underline-offset-2 active:bg-[var(--surface)] active:text-[var(--fg)]"
+            >
+              Viser moyenne −1 · {suggest.na3} / {suggest.cha7et}
+            </button>
+          ) : null}
+        </section>
+
+        {/* 4. One tip — hidden while banner talks */}
+        {tip ? (
+          <p className="px-1 text-center text-[13px] leading-snug text-[var(--muted)]">
+            {tip}
+          </p>
         ) : null}
-
-        <div className="w-full max-w-sm text-center">
-          <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
-            perdu aujourd’hui
-          </p>
-          <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
-            {ready ? formatEuro(moneyTotal(today, todayCha7et)) : "—"}
-          </p>
-          <p className="mt-1 text-xs tabular-nums text-[var(--muted)]">
-            <span className="text-[var(--accent)]">
-              {ready ? formatEuro(moneyForNa3(today)) : "—"} joints
-            </span>
-            {" + "}
-            <span className="text-[var(--cha7et)]">
-              {ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"} cig.
-            </span>
-          </p>
-        </div>
-
-        <div className="grid w-full max-w-sm grid-cols-2 items-end gap-x-5">
-          <div className="flex flex-col items-center">
-            <button
-              type="button"
-              aria-label="Add joint (Na3Na3). Long press to add five."
-              onPointerDown={onPlusDown("na3")}
-              onPointerUp={onPlusUp("na3")}
-              onPointerLeave={onPlusCancel}
-              onPointerCancel={onPlusCancel}
-              onContextMenu={(e) => e.preventDefault()}
-              onAnimationEnd={() => setPulsing(null)}
-              className={`select-none touch-manipulation flex h-[9.5rem] w-[9.5rem] items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_14px_44px_var(--accent-glow)] ${
-                pulsing === "na3" ? "na3-btn-pulse" : ""
-              } ${
-                statusNa3 === "over"
-                  ? "ring-2 ring-[var(--fg)] ring-offset-2 ring-offset-[var(--bg)]"
-                  : ""
-              }`}
-            >
-              <span className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none">
-                +1
-              </span>
-            </button>
-            <button
-              type="button"
-              aria-label="Undo last joint"
-              onClick={() => onMinus("na3")}
-              disabled={!canUndoNa3}
-              className="mt-4 select-none touch-manipulation min-h-11 rounded-full border border-[var(--border)] px-7 py-2.5 text-[15px] text-[var(--muted)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"
-            >
-              −1
-            </button>
-          </div>
-
-          <div className="flex flex-col items-center pb-1">
-            <button
-              type="button"
-              aria-label="Add cigarette (cha7et). Long press to add five."
-              onPointerDown={onPlusDown("cha7et")}
-              onPointerUp={onPlusUp("cha7et")}
-              onPointerLeave={onPlusCancel}
-              onPointerCancel={onPlusCancel}
-              onContextMenu={(e) => e.preventDefault()}
-              onAnimationEnd={() => setPulsing(null)}
-              className={`select-none touch-manipulation flex h-[6.75rem] w-[6.75rem] items-center justify-center rounded-full bg-[var(--cha7et)] text-[var(--cha7et-fg)] shadow-[0_12px_36px_var(--cha7et-glow)] ${
-                pulsing === "cha7et" ? "na3-btn-pulse-cha7et" : ""
-              } ${
-                statusCha7et === "over"
-                  ? "ring-2 ring-[var(--fg)] ring-offset-2 ring-offset-[var(--bg)]"
-                  : ""
-              }`}
-            >
-              <span className="font-[family-name:var(--font-display)] text-[2rem] font-semibold leading-none">
-                +1
-              </span>
-            </button>
-            <button
-              type="button"
-              aria-label="Undo last cigarette"
-              onClick={() => onMinus("cha7et")}
-              disabled={!canUndoCha7et}
-              className="mt-4 select-none touch-manipulation min-h-11 rounded-full border border-[var(--cha7et)]/40 px-7 py-2.5 text-[15px] text-[var(--cha7et)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"
-            >
-              −1
-            </button>
-          </div>
-        </div>
       </main>
 
       <GoalsEditor
@@ -429,122 +404,180 @@ export function HomeScreen() {
           setGoals(loadGoals());
           setGoalsOpen(false);
         }}
-        suggestNa3={suggestNa3}
-        suggestCha7et={suggestCha7et}
+        suggestNa3={Math.max(0, suggest.na3)}
+        suggestCha7et={Math.max(0, suggest.cha7et)}
       />
     </div>
   );
 }
 
-function CountColumn({
-  count,
-  avg,
-  last,
-  money,
-  unitPrice,
-  title,
+function Insight({
+  label,
+  value,
+  hint,
+  emphasize,
+}: {
+  label: string;
+  value: string;
+  hint: string;
+  emphasize?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl bg-[var(--surface)]/55 px-2 py-3">
+      <p className="text-[10px] uppercase tracking-[0.12em] text-[var(--muted)]">
+        {label}
+      </p>
+      <p
+        className={`mt-1 font-[family-name:var(--font-display)] text-lg font-semibold tabular-nums tracking-tight ${
+          emphasize ? "text-[var(--accent)]" : "text-[var(--fg)]"
+        }`}
+      >
+        {value}
+      </p>
+      <p className="mt-0.5 text-[10px] text-[var(--muted)]">{hint}</p>
+    </div>
+  );
+}
+
+function TapLane({
   tone,
-  pop,
-  popKey,
+  title,
+  count,
+  money,
+  last,
   goalMax,
   status,
+  pop,
+  popKey,
+  pulsing,
+  canUndo,
+  btnClass,
+  onPlusDown,
+  onPlusUp,
+  onPlusCancel,
+  onMinus,
+  onPulseEnd,
 }: {
-  kind: EntryKind;
-  count: number | null;
-  avg: string;
-  last: string;
-  money: string;
-  unitPrice: string;
-  title: string;
   tone: "na3" | "cha7et";
-  pop: boolean;
-  popKey: number;
+  title: string;
+  count: number | null;
+  money: string | null;
+  last: string | null;
   goalMax: number | null;
   status: GoalStatus;
+  pop: boolean;
+  popKey: number;
+  pulsing: boolean;
+  canUndo: boolean;
+  btnClass: string;
+  onPlusDown: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onPlusUp: (e: React.PointerEvent<HTMLButtonElement>) => void;
+  onPlusCancel: () => void;
+  onMinus: () => void;
+  onPulseEnd: () => void;
 }) {
   const color = tone === "cha7et" ? "var(--cha7et)" : "var(--accent)";
+  const fg = tone === "cha7et" ? "var(--cha7et-fg)" : "var(--accent-fg)";
+  const glow =
+    tone === "cha7et" ? "var(--cha7et-glow)" : "var(--accent-glow)";
+  const pulseClass =
+    tone === "cha7et" ? "na3-btn-pulse-cha7et" : "na3-btn-pulse";
   const pct =
     goalMax !== null && goalMax > 0 && count !== null
       ? Math.min(100, (count / goalMax) * 100)
-      : 0;
+      : goalMax === 0 && count !== null
+        ? count > 0
+          ? 100
+          : 0
+        : 0;
 
   return (
     <div className="flex flex-col items-center">
       <p
         key={pop ? `${tone}-${popKey}` : tone}
-        className={`font-[family-name:var(--font-display)] text-[clamp(3.5rem,17vw,5.75rem)] leading-none font-semibold tabular-nums tracking-tight ${
+        className={`font-[family-name:var(--font-display)] text-[clamp(3rem,15vw,4.75rem)] leading-none font-semibold tabular-nums tracking-tight ${
           pop ? "na3-count-pop" : ""
         }`}
-        style={{
-          color:
-            status === "over" || status === "at"
-              ? color
-              : tone === "cha7et"
-                ? "var(--cha7et)"
-                : "var(--fg)",
-        }}
+        style={{ color }}
         aria-live="polite"
       >
         {count === null ? "—" : count}
       </p>
       <p
-        className="mt-2 text-[11px] font-medium uppercase tracking-[0.14em]"
+        className="mt-1.5 text-[11px] font-medium uppercase tracking-[0.14em]"
         style={{ color }}
       >
         {title}
       </p>
 
       {goalMax !== null ? (
-        <div className="mt-2 w-full max-w-[7.5rem]">
-          <div className="flex items-baseline justify-between text-[11px] tabular-nums">
-            <span
-              className={
-                status === "over" || status === "at"
-                  ? "font-semibold"
-                  : "text-[var(--muted)]"
-              }
-              style={
-                status === "over" || status === "at"
-                  ? { color }
-                  : undefined
-              }
-            >
+        <div className="mt-2 w-full max-w-[6.5rem]">
+          <div className="flex justify-between text-[11px] tabular-nums text-[var(--muted)]">
+            <span style={{ color: status === "ok" ? undefined : color }}>
               {count ?? 0}/{goalMax}
             </span>
-            <span className="text-[var(--muted)]">
+            <span>
               {status === "over"
-                ? "dépassé"
+                ? "!"
                 : status === "at"
-                  ? "atteint"
+                  ? "="
                   : status === "near"
-                    ? "proche"
-                    : "ok"}
+                    ? "…"
+                    : ""}
             </span>
           </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--surface)]">
+          <div className="mt-1 h-1 overflow-hidden rounded-full bg-[var(--border)]/60">
             <div
               className="h-full rounded-full transition-[width] duration-300"
-              style={{
-                width: `${pct}%`,
-                background: color,
-                opacity: status === "ok" ? 0.75 : 1,
-              }}
+              style={{ width: `${pct}%`, background: color }}
             />
           </div>
         </div>
       ) : null}
 
-      <p className="mt-2 text-center text-xs leading-relaxed text-[var(--muted)]">
-        avg {avg}
-        <br />
-        {last}
-        <br />
-        <span style={{ color }}>
-          {money}
-          {" · "}
-          {unitPrice}
-        </span>
+      <p className="mt-1.5 text-[11px] tabular-nums text-[var(--muted)]">
+        {money ?? "—"}
+        {last ? ` · ${last}` : ""}
       </p>
+
+      <button
+        type="button"
+        aria-label={
+          tone === "cha7et"
+            ? "Add cigarette. Long press +5."
+            : "Add joint. Long press +5."
+        }
+        onPointerDown={onPlusDown}
+        onPointerUp={onPlusUp}
+        onPointerLeave={onPlusCancel}
+        onPointerCancel={onPlusCancel}
+        onContextMenu={(e) => e.preventDefault()}
+        onAnimationEnd={onPulseEnd}
+        className={`mt-5 select-none touch-manipulation flex items-center justify-center rounded-full font-[family-name:var(--font-display)] font-semibold leading-none ${btnClass} ${
+          pulsing ? pulseClass : ""
+        } ${
+          status === "over"
+            ? "ring-2 ring-[var(--fg)] ring-offset-2 ring-offset-[var(--bg)]"
+            : ""
+        }`}
+        style={{
+          background: color,
+          color: fg,
+          boxShadow: `0 12px 36px ${glow}`,
+        }}
+      >
+        +1
+      </button>
+
+      <button
+        type="button"
+        aria-label="Undo last"
+        onClick={onMinus}
+        disabled={!canUndo}
+        className="mt-3 select-none touch-manipulation min-h-10 rounded-full border border-[var(--border)] px-6 py-2 text-sm text-[var(--muted)] enabled:active:bg-[var(--surface)] disabled:opacity-30"
+      >
+        −1
+      </button>
     </div>
   );
 }
