@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DailyChart, type ChartBar } from "@/components/DailyChart";
 import { HourlyChart } from "@/components/HourlyChart";
 import {
@@ -15,6 +15,7 @@ import {
   moneyTotal,
   packsForCha7et,
 } from "@/lib/costs";
+import { goalStatus, loadGoals, type DailyGoals } from "@/lib/goals";
 import {
   formatAvg,
   formatMonthDay,
@@ -64,8 +65,13 @@ export function StatsScreen() {
   const { ready, entries } = useEntries();
   const [range, setRange] = useState<Range>(7);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [goals, setGoals] = useState<DailyGoals>({ na3: null, cha7et: null });
   const weekly = isWeeklyRange(range);
   const today = todayKey();
+
+  useEffect(() => {
+    setGoals(loadGoals());
+  }, []);
 
   const na3 = useMemo(() => filterByKind(entries, "na3"), [entries]);
   const cha7et = useMemo(() => filterByKind(entries, "cha7et"), [entries]);
@@ -258,13 +264,46 @@ export function StatsScreen() {
           label="Na3Na3 · joints"
           value={ready ? todayA : null}
           tone="na3"
+          goalMax={goals.na3}
         />
         <HeroCount
           label="cha7et · cig."
           value={ready ? todayB : null}
           tone="cha7et"
+          goalMax={goals.cha7et}
         />
       </section>
+
+      {(goals.na3 !== null || goals.cha7et !== null) && ready ? (
+        <p className="mb-6 text-sm leading-relaxed text-[var(--muted)]">
+          Objectif :{" "}
+          {goals.na3 !== null ? (
+            <span className="text-[var(--accent)]">
+              {todayA}/{goals.na3} joints
+              {goalStatus(todayA, goals.na3) === "over"
+                ? " · dépassé"
+                : goalStatus(todayA, goals.na3) === "at"
+                  ? " · atteint"
+                  : ""}
+            </span>
+          ) : (
+            <span className="text-[var(--accent)]">joints off</span>
+          )}
+          {" · "}
+          {goals.cha7et !== null ? (
+            <span className="text-[var(--cha7et)]">
+              {todayB}/{goals.cha7et} cig.
+              {goalStatus(todayB, goals.cha7et) === "over"
+                ? " · dépassé"
+                : goalStatus(todayB, goals.cha7et) === "at"
+                  ? " · atteint"
+                  : ""}
+            </span>
+          ) : (
+            <span className="text-[var(--cha7et)]">cig. off</span>
+          )}
+        </p>
+      ) : null}
 
       {/* Smoke-free streak */}
       <section className="mb-8">
@@ -568,10 +607,12 @@ function HeroCount({
   label,
   value,
   tone,
+  goalMax,
 }: {
   label: string;
   value: number | null;
   tone: "na3" | "cha7et";
+  goalMax?: number | null;
 }) {
   const color = tone === "cha7et" ? "var(--cha7et)" : "var(--accent)";
   return (
@@ -584,6 +625,11 @@ function HeroCount({
         style={{ color }}
       >
         {value === null ? "—" : value}
+        {goalMax !== null && goalMax !== undefined ? (
+          <span className="text-lg font-medium text-[var(--muted)]">
+            /{goalMax}
+          </span>
+        ) : null}
       </p>
     </div>
   );
