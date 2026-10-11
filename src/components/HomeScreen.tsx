@@ -168,7 +168,7 @@ export function HomeScreen() {
               {ready ? today : "—"}
             </p>
             <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--accent)]">
-              Na3Na3
+              Na3Na3 · joints
             </p>
             <p className="mt-1 text-center text-xs leading-relaxed text-[var(--muted)]">
               avg {ready ? formatAvg(avg7) : "—"}
@@ -181,6 +181,8 @@ export function HomeScreen() {
               <br />
               <span className="text-[var(--accent)]">
                 {ready ? formatEuro(moneyForNa3(today)) : "—"}
+                {" · "}
+                2,50 €
               </span>
             </p>
           </div>
@@ -192,12 +194,12 @@ export function HomeScreen() {
                 popKind === "cha7et" && popKey > 0 ? "na3-count-pop" : ""
               }`}
               aria-live="polite"
-              aria-label={`cha7et today: ${ready ? todayCha7et : "…"}`}
+              aria-label={`cha7et cigarettes today: ${ready ? todayCha7et : "…"}`}
             >
               {ready ? todayCha7et : "—"}
             </p>
             <p className="mt-2 text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--cha7et)]">
-              cha7et
+              cha7et · cig.
             </p>
             <p className="mt-1 text-center text-xs leading-relaxed text-[var(--muted)]">
               avg {ready ? formatAvg(avg7Cha7et) : "—"}
@@ -210,6 +212,8 @@ export function HomeScreen() {
               <br />
               <span className="text-[var(--cha7et)]">
                 {ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"}
+                {" · "}
+                0,18 €
               </span>
             </p>
           </div>
@@ -222,13 +226,22 @@ export function HomeScreen() {
           <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
             {ready ? formatEuro(moneyTotal(today, todayCha7et)) : "—"}
           </p>
+          <p className="mt-1 text-xs tabular-nums text-[var(--muted)]">
+            <span className="text-[var(--accent)]">
+              {ready ? formatEuro(moneyForNa3(today)) : "—"} joints
+            </span>
+            {" + "}
+            <span className="text-[var(--cha7et)]">
+              {ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"} cig.
+            </span>
+          </p>
         </div>
 
         <div className="grid w-full max-w-sm grid-cols-2 items-end gap-x-5">
           <div className="flex flex-col items-center">
             <button
               type="button"
-              aria-label="Add Na3Na3. Long press to add five."
+              aria-label="Add joint (Na3Na3). Long press to add five."
               onPointerDown={onPlusDown("na3")}
               onPointerUp={onPlusUp("na3")}
               onPointerLeave={onPlusCancel}
@@ -245,7 +258,7 @@ export function HomeScreen() {
             </button>
             <button
               type="button"
-              aria-label="Undo last Na3Na3"
+              aria-label="Undo last joint"
               onClick={() => onMinus("na3")}
               disabled={!canUndoNa3}
               className="mt-4 select-none touch-manipulation min-h-11 rounded-full border border-[var(--border)] px-7 py-2.5 text-[15px] text-[var(--muted)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"
@@ -257,7 +270,7 @@ export function HomeScreen() {
           <div className="flex flex-col items-center pb-1">
             <button
               type="button"
-              aria-label="Add cha7et. Long press to add five."
+              aria-label="Add cigarette (cha7et). Long press to add five."
               onPointerDown={onPlusDown("cha7et")}
               onPointerUp={onPlusUp("cha7et")}
               onPointerLeave={onPlusCancel}
@@ -274,7 +287,7 @@ export function HomeScreen() {
             </button>
             <button
               type="button"
-              aria-label="Undo last cha7et"
+              aria-label="Undo last cigarette"
               onClick={() => onMinus("cha7et")}
               disabled={!canUndoCha7et}
               className="mt-4 select-none touch-manipulation min-h-11 rounded-full border border-[var(--cha7et)]/40 px-7 py-2.5 text-[15px] text-[var(--cha7et)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"

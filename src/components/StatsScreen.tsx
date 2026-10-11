@@ -244,12 +244,12 @@ export function StatsScreen() {
       {/* Today hero */}
       <section className="mb-6 grid grid-cols-2 gap-3">
         <HeroCount
-          label="Na3Na3 today"
+          label="Na3Na3 · joints"
           value={ready ? todayA : null}
           tone="na3"
         />
         <HeroCount
-          label="cha7et today"
+          label="cha7et · cig."
           value={ready ? todayB : null}
           tone="cha7et"
         />
