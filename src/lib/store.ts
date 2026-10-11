@@ -4,6 +4,7 @@ import {
   dayKey,
   lastNDayKeys,
   parisHour,
+  shiftDayKey,
   todayKey,
   weekEndKey,
   weekStartKey,
@@ -174,6 +175,73 @@ export function countOnDay(entries: Entry[], key: string): number {
   let n = 0;
   for (const s of entries) {
     if (dayKey(s.loggedAt) === key) n++;
+  }
+  return n;
+}
+
+/** Calendar days (Paris) that have at least one log of any kind. */
+export function smokeDaySet(entries: Entry[]): Set<string> {
+  const set = new Set<string>();
+  for (const e of entries) set.add(dayKey(e.loggedAt));
+  return set;
+}
+
+/**
+ * Consecutive smoke-free days (0 joints + 0 cigs), Paris calendar.
+ * Starts the day after the last smoke; 0 if you logged today.
+ */
+export function currentSmokeFreeStreak(entries: Entry[]): number {
+  if (entries.length === 0) return 0;
+  const today = todayKey();
+  const smoked = smokeDaySet(entries);
+
+  let lastSmoke: string | null = null;
+  for (const d of smoked) {
+    if (d <= today && (!lastSmoke || d > lastSmoke)) lastSmoke = d;
+  }
+  if (!lastSmoke || lastSmoke === today) return 0;
+
+  let streak = 0;
+  let d = shiftDayKey(lastSmoke, 1);
+  while (d <= today) {
+    if (smoked.has(d)) break;
+    streak += 1;
+    d = shiftDayKey(d, 1);
+  }
+  return streak;
+}
+
+/** Longest run of consecutive free days between smokes (or up to today). */
+export function bestSmokeFreeStreak(entries: Entry[]): number {
+  if (entries.length === 0) return 0;
+  const today = todayKey();
+  const smoked = smokeDaySet(entries);
+  const days = [...smoked].filter((d) => d <= today).sort();
+  if (days.length === 0) return 0;
+
+  let best = 0;
+  // Gaps between consecutive smoke days
+  for (let i = 0; i < days.length - 1; i++) {
+    const gap = calendarDaysBetween(days[i], days[i + 1]) - 1;
+    if (gap > best) best = gap;
+  }
+  // Tail after last smoke through today
+  const last = days[days.length - 1];
+  if (last < today) {
+    const tail = calendarDaysBetween(last, today);
+    if (tail > best) best = tail;
+  }
+  return best;
+}
+
+/** Whole calendar days strictly after `from` up to and including `to`. */
+function calendarDaysBetween(from: string, to: string): number {
+  if (to <= from) return 0;
+  let n = 0;
+  let d = shiftDayKey(from, 1);
+  while (d <= to) {
+    n += 1;
+    d = shiftDayKey(d, 1);
   }
   return n;
 }

@@ -25,8 +25,10 @@ import {
 } from "@/lib/dates";
 import {
   average,
+  bestSmokeFreeStreak,
   countToday,
   countYesterday,
+  currentSmokeFreeStreak,
   dailyTotals,
   entriesForDay,
   filterByKind,
@@ -184,6 +186,15 @@ export function StatsScreen() {
     return moneyTotal(avgA * 30, avgB * 30);
   }, [ready, avgA, avgB]);
 
+  const freeStreak = useMemo(
+    () => (ready ? currentSmokeFreeStreak(entries) : 0),
+    [ready, entries],
+  );
+  const bestFreeStreak = useMemo(
+    () => (ready ? bestSmokeFreeStreak(entries) : 0),
+    [ready, entries],
+  );
+
   const detailDay = useMemo(() => {
     if (!weekly && selectedId) return selectedId;
     return today;
@@ -253,6 +264,46 @@ export function StatsScreen() {
           value={ready ? todayB : null}
           tone="cha7et"
         />
+      </section>
+
+      {/* Smoke-free streak */}
+      <section className="mb-8">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
+          Jours sans
+        </h2>
+        <p className="mt-1 text-xs text-[var(--muted)]">
+          Jours d’affilée à 0 joint et 0 cigarette
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-5">
+          <div>
+            <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+              En cours
+            </p>
+            <p className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--accent)]">
+              {ready ? freeStreak : "—"}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {ready && freeStreak === 0
+                ? todayA + todayB > 0
+                  ? "tu as loggé aujourd’hui — streak à 0"
+                  : "passe une journée à 0 pour démarrer"
+                : ready
+                  ? freeStreak === 1
+                    ? "jour"
+                    : "jours"
+                  : null}
+            </p>
+          </div>
+          <div>
+            <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+              Record
+            </p>
+            <p className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--fg)]">
+              {ready ? bestFreeStreak : "—"}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">meilleure série</p>
+          </div>
+        </div>
       </section>
 
       {/* Money lost — total first, then split */}

@@ -10,7 +10,11 @@ import {
 } from "@/lib/costs";
 import { formatAvg, formatTime, todayKey } from "@/lib/dates";
 import { haptic } from "@/lib/haptics";
-import { entriesForDay, filterByKind } from "@/lib/store";
+import {
+  currentSmokeFreeStreak,
+  entriesForDay,
+  filterByKind,
+} from "@/lib/store";
 import { SyncBadge } from "@/components/SyncBadge";
 import { useAuth } from "@/lib/use-auth";
 import { useEntries } from "@/lib/use-entries";
@@ -50,6 +54,11 @@ export function HomeScreen() {
     const day = entriesForDay(filterByKind(entries, "cha7et"), todayKey());
     return day.length ? day[day.length - 1] : null;
   }, [ready, entries]);
+
+  const freeStreak = useMemo(
+    () => (ready ? currentSmokeFreeStreak(entries) : 0),
+    [ready, entries],
+  );
 
   const clearTimer = () => {
     if (timerRef.current) {
@@ -218,6 +227,22 @@ export function HomeScreen() {
             </p>
           </div>
         </div>
+
+        {ready && freeStreak > 0 ? (
+          <div className="w-full max-w-sm text-center">
+            <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--accent)]">
+              jours sans
+            </p>
+            <p className="mt-1 font-[family-name:var(--font-display)] text-4xl font-semibold tabular-nums tracking-tight text-[var(--accent)]">
+              {freeStreak}
+            </p>
+            <p className="mt-1 text-xs text-[var(--muted)]">
+              {freeStreak === 1
+                ? "1 jour sans joint ni cigarette"
+                : `${freeStreak} jours sans joint ni cigarette`}
+            </p>
+          </div>
+        ) : null}
 
         <div className="w-full max-w-sm text-center">
           <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
