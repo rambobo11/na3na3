@@ -5,8 +5,15 @@ import { DailyChart, type ChartBar } from "@/components/DailyChart";
 import { HourlyChart } from "@/components/HourlyChart";
 import {
   CHA7ET_EUR,
+  CIGS_PER_PACK,
+  NA3_EUR,
+  TOBACCO_PACK_EUR,
   formatEuro,
+  formatPacks,
   moneyForCha7et,
+  moneyForNa3,
+  moneyTotal,
+  packsForNa3,
 } from "@/lib/costs";
 import {
   formatAvg,
@@ -144,19 +151,38 @@ export function StatsScreen() {
     [ready, cha7et],
   );
 
-  const moneyToday = useMemo(() => moneyForCha7et(todayB), [todayB]);
-  const moneyRange = useMemo(
-    () => moneyForCha7et(totalB),
-    [totalB],
+  const moneyToday = useMemo(
+    () => moneyTotal(todayA, todayB),
+    [todayA, todayB],
   );
+  const moneyTodayNa3 = useMemo(() => moneyForNa3(todayA), [todayA]);
+  const moneyTodayCha7et = useMemo(() => moneyForCha7et(todayB), [todayB]);
+
+  const moneyRange = useMemo(
+    () => moneyTotal(totalA, totalB),
+    [totalA, totalB],
+  );
+  const moneyRangeNa3 = useMemo(() => moneyForNa3(totalA), [totalA]);
+  const moneyRangeCha7et = useMemo(() => moneyForCha7et(totalB), [totalB]);
+
   const moneyAll = useMemo(
+    () =>
+      ready ? moneyTotal(na3.length, cha7et.length) : 0,
+    [ready, na3.length, cha7et.length],
+  );
+  const moneyAllNa3 = useMemo(
+    () => (ready ? moneyForNa3(na3.length) : 0),
+    [ready, na3.length],
+  );
+  const moneyAllCha7et = useMemo(
     () => (ready ? moneyForCha7et(cha7et.length) : 0),
     [ready, cha7et.length],
   );
+
   const moneyMonthPace = useMemo(() => {
-    if (!ready || avgB <= 0) return 0;
-    return moneyForCha7et(avgB * 30);
-  }, [ready, avgB]);
+    if (!ready) return 0;
+    return moneyTotal(avgA * 30, avgB * 30);
+  }, [ready, avgA, avgB]);
 
   const detailDay = useMemo(() => {
     if (!weekly && selectedId) return selectedId;
@@ -229,38 +255,86 @@ export function StatsScreen() {
         />
       </section>
 
-      {/* Money (cha7et / joints) */}
+      {/* Money lost — total first, then split */}
       <section className="mb-8">
         <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
-          Argent
+          Argent perdu
         </h2>
         <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
-          Estim. {formatEuro(CHA7ET_EUR)} / cha7et (tabac ~3,60 €, feuilles
-          ~2–2,50 €, herbe incluse dans le forfait)
+          Na3Na3 = cig. {formatEuro(TOBACCO_PACK_EUR)} / {CIGS_PER_PACK} (
+          {formatEuro(NA3_EUR)} pièce) · cha7et = {formatEuro(CHA7ET_EUR)} /
+          joint
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-5">
-          <MoneyStat
-            label="Today"
-            value={ready ? formatEuro(moneyToday) : "—"}
+
+        <div className="mt-5">
+          <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            Total perdu
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-[2.75rem] font-semibold tabular-nums tracking-tight leading-none text-[var(--fg)]">
+            {ready ? formatEuro(moneyAll) : "—"}
+          </p>
+          <p className="mt-2 text-sm tabular-nums text-[var(--muted)]">
+            <span className="text-[var(--accent)]">
+              {ready ? formatEuro(moneyAllNa3) : "—"} cig.
+            </span>
+            {" · "}
+            <span className="text-[var(--cha7et)]">
+              {ready ? formatEuro(moneyAllCha7et) : "—"} cha7et
+            </span>
+            {ready && na3.length > 0 ? (
+              <>
+                {" · "}
+                {formatPacks(packsForNa3(na3.length))}
+              </>
+            ) : null}
+          </p>
+        </div>
+
+        <div className="mt-6 grid grid-cols-2 gap-x-5 gap-y-5">
+          <MoneyPeriod
+            label="Aujourd’hui"
+            total={ready ? formatEuro(moneyToday) : "—"}
+            na3={ready ? formatEuro(moneyTodayNa3) : "—"}
+            cha7et={ready ? formatEuro(moneyTodayCha7et) : "—"}
           />
-          <MoneyStat
-            label={range === 365 ? "1y" : `${range}d`}
-            value={ready ? formatEuro(moneyRange) : "—"}
+          <MoneyPeriod
+            label={range === 365 ? "1 an" : `${range} jours`}
+            total={ready ? formatEuro(moneyRange) : "—"}
+            na3={ready ? formatEuro(moneyRangeNa3) : "—"}
+            cha7et={ready ? formatEuro(moneyRangeCha7et) : "—"}
           />
-          <MoneyStat
-            label="All time"
-            value={ready ? formatEuro(moneyAll) : "—"}
-          />
-          <MoneyStat
-            label="Pace / month"
-            value={ready && moneyMonthPace > 0 ? formatEuro(moneyMonthPace) : "—"}
+          <MoneyPeriod
+            label="Rythme / mois"
+            total={
+              ready && moneyMonthPace > 0 ? formatEuro(moneyMonthPace) : "—"
+            }
+            na3={
+              ready && avgA > 0 ? formatEuro(moneyForNa3(avgA * 30)) : "—"
+            }
+            cha7et={
+              ready && avgB > 0 ? formatEuro(moneyForCha7et(avgB * 30)) : "—"
+            }
             hint={
-              ready && avgB > 0
-                ? `~${formatAvg(avgB)} / day × 30`
+              ready && (avgA > 0 || avgB > 0)
+                ? "si tu continues à ce rythme"
                 : undefined
             }
           />
         </div>
+
+        {ready && moneyMonthPace > 0 ? (
+          <p className="mt-5 text-sm leading-relaxed text-[var(--muted)]">
+            Si tu arrêtes à ce rythme, tu{" "}
+            <span className="font-medium text-[var(--accent)]">
+              gardes ~{formatEuro(moneyMonthPace)}
+            </span>{" "}
+            par mois —{" "}
+            <span className="font-medium text-[var(--fg)]">
+              ~{formatEuro(moneyMonthPace * 12)}
+            </span>{" "}
+            par an.
+          </p>
+        ) : null}
       </section>
 
       {/* Range */}
@@ -492,25 +566,40 @@ function CompactDual({
   );
 }
 
-function MoneyStat({
+function MoneyPeriod({
   label,
-  value,
+  total,
+  na3,
+  cha7et,
   hint,
+  highlight,
 }: {
   label: string;
-  value: string;
+  total: string;
+  na3: string;
+  cha7et: string;
   hint?: string;
+  highlight?: boolean;
 }) {
   return (
     <div>
       <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
         {label}
       </p>
-      <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight text-[var(--cha7et)]">
-        {value}
+      <p
+        className={`mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight ${
+          highlight ? "text-[var(--accent)]" : "text-[var(--fg)]"
+        }`}
+      >
+        {total}
+      </p>
+      <p className="mt-1 text-xs tabular-nums leading-relaxed text-[var(--muted)]">
+        <span className="text-[var(--accent)]">{na3}</span>
+        {" + "}
+        <span className="text-[var(--cha7et)]">{cha7et}</span>
       </p>
       {hint ? (
-        <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p>
+        <p className="mt-1 text-xs text-[var(--muted)]">{hint}</p>
       ) : null}
     </div>
   );

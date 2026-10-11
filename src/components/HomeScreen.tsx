@@ -2,7 +2,12 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { formatEuro, moneyForCha7et } from "@/lib/costs";
+import {
+  formatEuro,
+  moneyForCha7et,
+  moneyForNa3,
+  moneyTotal,
+} from "@/lib/costs";
 import { formatAvg, formatTime, todayKey } from "@/lib/dates";
 import { haptic } from "@/lib/haptics";
 import { entriesForDay, filterByKind } from "@/lib/store";
@@ -149,9 +154,8 @@ export function HomeScreen() {
         </Link>
       ) : null}
 
-      <main className="flex flex-1 flex-col items-center justify-center">
-        <div className="grid w-full max-w-sm grid-cols-2 items-end gap-x-5 gap-y-6">
-          {/* Na3Na3 lane */}
+      <main className="flex flex-1 flex-col items-center justify-center gap-6">
+        <div className="grid w-full max-w-sm grid-cols-2 gap-x-5">
           <div className="flex flex-col items-center">
             <p
               key={popKind === "na3" ? `n-${popKey}` : "n"}
@@ -174,38 +178,13 @@ export function HomeScreen() {
                 : ready
                   ? "no log yet"
                   : "—"}
-            </p>
-
-            <button
-              type="button"
-              aria-label="Add Na3Na3. Long press to add five."
-              onPointerDown={onPlusDown("na3")}
-              onPointerUp={onPlusUp("na3")}
-              onPointerLeave={onPlusCancel}
-              onPointerCancel={onPlusCancel}
-              onContextMenu={(e) => e.preventDefault()}
-              onAnimationEnd={() => setPulsing(null)}
-              className={`mt-7 select-none touch-manipulation flex h-[9.5rem] w-[9.5rem] items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_14px_44px_var(--accent-glow)] ${
-                pulsing === "na3" ? "na3-btn-pulse" : ""
-              }`}
-            >
-              <span className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none">
-                +1
+              <br />
+              <span className="text-[var(--accent)]">
+                {ready ? formatEuro(moneyForNa3(today)) : "—"}
               </span>
-            </button>
-
-            <button
-              type="button"
-              aria-label="Undo last Na3Na3"
-              onClick={() => onMinus("na3")}
-              disabled={!canUndoNa3}
-              className="mt-4 select-none touch-manipulation min-h-11 rounded-full border border-[var(--border)] px-7 py-2.5 text-[15px] text-[var(--muted)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"
-            >
-              −1
-            </button>
+            </p>
           </div>
 
-          {/* cha7et lane */}
           <div className="flex flex-col items-center">
             <p
               key={popKind === "cha7et" ? `c-${popKey}` : "c"}
@@ -230,10 +209,52 @@ export function HomeScreen() {
                   : "—"}
               <br />
               <span className="text-[var(--cha7et)]">
-                {ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"} today
+                {ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"}
               </span>
             </p>
+          </div>
+        </div>
 
+        <div className="w-full max-w-sm text-center">
+          <p className="text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+            perdu aujourd’hui
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
+            {ready ? formatEuro(moneyTotal(today, todayCha7et)) : "—"}
+          </p>
+        </div>
+
+        <div className="grid w-full max-w-sm grid-cols-2 items-end gap-x-5">
+          <div className="flex flex-col items-center">
+            <button
+              type="button"
+              aria-label="Add Na3Na3. Long press to add five."
+              onPointerDown={onPlusDown("na3")}
+              onPointerUp={onPlusUp("na3")}
+              onPointerLeave={onPlusCancel}
+              onPointerCancel={onPlusCancel}
+              onContextMenu={(e) => e.preventDefault()}
+              onAnimationEnd={() => setPulsing(null)}
+              className={`select-none touch-manipulation flex h-[9.5rem] w-[9.5rem] items-center justify-center rounded-full bg-[var(--accent)] text-[var(--accent-fg)] shadow-[0_14px_44px_var(--accent-glow)] ${
+                pulsing === "na3" ? "na3-btn-pulse" : ""
+              }`}
+            >
+              <span className="font-[family-name:var(--font-display)] text-5xl font-semibold leading-none">
+                +1
+              </span>
+            </button>
+            <button
+              type="button"
+              aria-label="Undo last Na3Na3"
+              onClick={() => onMinus("na3")}
+              disabled={!canUndoNa3}
+              className="mt-4 select-none touch-manipulation min-h-11 rounded-full border border-[var(--border)] px-7 py-2.5 text-[15px] text-[var(--muted)] transition-colors enabled:active:bg-[var(--surface)] disabled:opacity-30"
+            >
+              −1
+            </button>
+          </div>
+
+          <div className="flex flex-col items-center pb-1">
             <button
               type="button"
               aria-label="Add cha7et. Long press to add five."
@@ -243,7 +264,7 @@ export function HomeScreen() {
               onPointerCancel={onPlusCancel}
               onContextMenu={(e) => e.preventDefault()}
               onAnimationEnd={() => setPulsing(null)}
-              className={`mt-7 select-none touch-manipulation flex h-[6.75rem] w-[6.75rem] items-center justify-center rounded-full bg-[var(--cha7et)] text-[var(--cha7et-fg)] shadow-[0_12px_36px_var(--cha7et-glow)] ${
+              className={`select-none touch-manipulation flex h-[6.75rem] w-[6.75rem] items-center justify-center rounded-full bg-[var(--cha7et)] text-[var(--cha7et-fg)] shadow-[0_12px_36px_var(--cha7et-glow)] ${
                 pulsing === "cha7et" ? "na3-btn-pulse-cha7et" : ""
               }`}
             >
@@ -251,7 +272,6 @@ export function HomeScreen() {
                 +1
               </span>
             </button>
-
             <button
               type="button"
               aria-label="Undo last cha7et"

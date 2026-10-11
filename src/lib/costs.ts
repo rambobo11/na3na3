@@ -1,20 +1,37 @@
-/** Estimated cost per cha7et (joint), all-in. */
+/** Normal cigarettes (Na3Na3): pack price ÷ cigarettes per pack. */
+export const TOBACCO_PACK_EUR = 3.6;
+export const CIGS_PER_PACK = 20;
+export const NA3_EUR = TOBACCO_PACK_EUR / CIGS_PER_PACK; // 0.18 €
+
+/** cha7et (joints), all-in estimate. */
 export const CHA7ET_EUR = 2.5;
 
 /**
- * Rough ingredients the user used to land on ~2.50 € / joint:
+ * Joint estimate breakdown (informational):
  * - tobacco pack ≈ 3.60 €
- * - papers pack ≈ 2.00–2.50 €
- * - herb: no exact figure → folded into the 2.50 € estimate
+ * - papers ≈ 2.00–2.50 €
+ * - herb: no exact figure → folded into 2.50 € / joint
  */
 export const COST_NOTES = {
-  tobaccoPackEur: 3.6,
   papersPackEurMin: 2,
   papersPackEurMax: 2.5,
 } as const;
 
+export function moneyForNa3(count: number): number {
+  return Math.max(0, count) * NA3_EUR;
+}
+
 export function moneyForCha7et(count: number): number {
   return Math.max(0, count) * CHA7ET_EUR;
+}
+
+export function moneyTotal(na3Count: number, cha7etCount: number): number {
+  return moneyForNa3(na3Count) + moneyForCha7et(cha7etCount);
+}
+
+/** How many tobacco packs the cigarette count represents. */
+export function packsForNa3(count: number): number {
+  return Math.max(0, count) / CIGS_PER_PACK;
 }
 
 const euroFmt = new Intl.NumberFormat("fr-FR", {
@@ -24,6 +41,14 @@ const euroFmt = new Intl.NumberFormat("fr-FR", {
   maximumFractionDigits: 2,
 });
 
+const packFmt = new Intl.NumberFormat("fr-FR", {
+  maximumFractionDigits: 1,
+});
+
 export function formatEuro(n: number): string {
   return euroFmt.format(n);
+}
+
+export function formatPacks(n: number): string {
+  return `${packFmt.format(n)} paq.`;
 }
