@@ -8,6 +8,7 @@ import {
   formatEuro,
   moneyForCha7et,
   moneyForNa3,
+  moneySavedDuringStreak,
   moneyTotal,
 } from "@/lib/costs";
 import { formatAvg, formatTime, todayKey } from "@/lib/dates";
@@ -80,6 +81,11 @@ export function HomeScreen() {
   const freeStreak = useMemo(
     () => (ready ? currentSmokeFreeStreak(entries) : 0),
     [ready, entries],
+  );
+  const moneySavedStreak = useMemo(
+    () =>
+      ready ? moneySavedDuringStreak(freeStreak, avg7, avg7Cha7et) : 0,
+    [ready, freeStreak, avg7, avg7Cha7et],
   );
 
   const statusNa3 = goalStatus(today, goals.na3);
@@ -314,6 +320,19 @@ export function HomeScreen() {
                 ? "1 jour sans joint ni cigarette"
                 : `${freeStreak} jours sans joint ni cigarette`}
             </p>
+            {moneySavedStreak > 0 ? (
+              <>
+                <p className="mt-3 text-[11px] uppercase tracking-[0.14em] text-[var(--muted)]">
+                  argent économisé
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
+                  {formatEuro(moneySavedStreak)}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--muted)]">
+                  vs ta moyenne 7j
+                </p>
+              </>
+            ) : null}
           </div>
         ) : null}
 

@@ -12,6 +12,7 @@ import {
   formatPacks,
   moneyForCha7et,
   moneyForNa3,
+  moneySavedDuringStreak,
   moneyTotal,
   packsForCha7et,
 } from "@/lib/costs";
@@ -200,6 +201,19 @@ export function StatsScreen() {
     () => (ready ? bestSmokeFreeStreak(entries) : 0),
     [ready, entries],
   );
+  const avg7A = useMemo(
+    () => (ready ? average(dailyTotals(na3, 7)) : 0),
+    [ready, na3],
+  );
+  const avg7B = useMemo(
+    () => (ready ? average(dailyTotals(cha7et, 7)) : 0),
+    [ready, cha7et],
+  );
+  const moneySavedStreak = useMemo(
+    () =>
+      ready ? moneySavedDuringStreak(freeStreak, avg7A, avg7B) : 0,
+    [ready, freeStreak, avg7A, avg7B],
+  );
 
   const detailDay = useMemo(() => {
     if (!weekly && selectedId) return selectedId;
@@ -342,6 +356,20 @@ export function StatsScreen() {
             </p>
             <p className="mt-1 text-xs text-[var(--muted)]">meilleure série</p>
           </div>
+        </div>
+
+        <div className="mt-6">
+          <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+            Argent économisé pendant le streak
+          </p>
+          <p className="mt-1 font-[family-name:var(--font-display)] text-3xl font-semibold tabular-nums tracking-tight text-[var(--fg)]">
+            {ready && freeStreak > 0 ? formatEuro(moneySavedStreak) : formatEuro(0)}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+            {ready && freeStreak > 0
+              ? `~${formatEuro(moneyTotal(avg7A, avg7B))} / jour × ${freeStreak} (moy. 7j)`
+              : "Apparait dès que tu as au moins 1 jour sans"}
+          </p>
         </div>
       </section>
 

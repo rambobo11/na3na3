@@ -29,6 +29,23 @@ export function moneyTotal(na3Count: number, cha7etCount: number): number {
   return moneyForNa3(na3Count) + moneyForCha7et(cha7etCount);
 }
 
+/**
+ * Money not spent during a smoke-free streak, using recent daily averages
+ * (joints + cigs) as the "would have spent" pace.
+ */
+export function moneySavedDuringStreak(
+  streakDays: number,
+  avgNa3PerDay: number,
+  avgCha7etPerDay: number,
+): number {
+  if (streakDays <= 0) return 0;
+  const pace = moneyTotal(
+    Math.max(0, avgNa3PerDay),
+    Math.max(0, avgCha7etPerDay),
+  );
+  return streakDays * pace;
+}
+
 /** How many cigarette packs the cha7et count represents. */
 export function packsForCha7et(count: number): number {
   return Math.max(0, count) / CIGS_PER_PACK;
