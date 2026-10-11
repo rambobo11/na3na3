@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { formatEuro, moneyForCha7et } from "@/lib/costs";
 import { formatAvg, formatTime, todayKey } from "@/lib/dates";
 import { haptic } from "@/lib/haptics";
 import { entriesForDay, filterByKind } from "@/lib/store";
@@ -227,6 +228,10 @@ export function HomeScreen() {
                 : ready
                   ? "no log yet"
                   : "—"}
+              <br />
+              <span className="text-[var(--cha7et)]">
+                {ready ? formatEuro(moneyForCha7et(todayCha7et)) : "—"} today
+              </span>
             </p>
 
             <button

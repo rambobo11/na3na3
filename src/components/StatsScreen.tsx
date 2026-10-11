@@ -4,6 +4,11 @@ import { useMemo, useState } from "react";
 import { DailyChart, type ChartBar } from "@/components/DailyChart";
 import { HourlyChart } from "@/components/HourlyChart";
 import {
+  CHA7ET_EUR,
+  formatEuro,
+  moneyForCha7et,
+} from "@/lib/costs";
+import {
   formatAvg,
   formatMonthDay,
   formatShortDay,
@@ -139,6 +144,20 @@ export function StatsScreen() {
     [ready, cha7et],
   );
 
+  const moneyToday = useMemo(() => moneyForCha7et(todayB), [todayB]);
+  const moneyRange = useMemo(
+    () => moneyForCha7et(totalB),
+    [totalB],
+  );
+  const moneyAll = useMemo(
+    () => (ready ? moneyForCha7et(cha7et.length) : 0),
+    [ready, cha7et.length],
+  );
+  const moneyMonthPace = useMemo(() => {
+    if (!ready || avgB <= 0) return 0;
+    return moneyForCha7et(avgB * 30);
+  }, [ready, avgB]);
+
   const detailDay = useMemo(() => {
     if (!weekly && selectedId) return selectedId;
     return today;
@@ -197,7 +216,7 @@ export function StatsScreen() {
       </header>
 
       {/* Today hero */}
-      <section className="mb-8 grid grid-cols-2 gap-3">
+      <section className="mb-6 grid grid-cols-2 gap-3">
         <HeroCount
           label="Na3Na3 today"
           value={ready ? todayA : null}
@@ -208,6 +227,40 @@ export function StatsScreen() {
           value={ready ? todayB : null}
           tone="cha7et"
         />
+      </section>
+
+      {/* Money (cha7et / joints) */}
+      <section className="mb-8">
+        <h2 className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-[var(--fg)]">
+          Argent
+        </h2>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--muted)]">
+          Estim. {formatEuro(CHA7ET_EUR)} / cha7et (tabac ~3,60 €, feuilles
+          ~2–2,50 €, herbe incluse dans le forfait)
+        </p>
+        <div className="mt-4 grid grid-cols-2 gap-x-5 gap-y-5">
+          <MoneyStat
+            label="Today"
+            value={ready ? formatEuro(moneyToday) : "—"}
+          />
+          <MoneyStat
+            label={range === 365 ? "1y" : `${range}d`}
+            value={ready ? formatEuro(moneyRange) : "—"}
+          />
+          <MoneyStat
+            label="All time"
+            value={ready ? formatEuro(moneyAll) : "—"}
+          />
+          <MoneyStat
+            label="Pace / month"
+            value={ready && moneyMonthPace > 0 ? formatEuro(moneyMonthPace) : "—"}
+            hint={
+              ready && avgB > 0
+                ? `~${formatAvg(avgB)} / day × 30`
+                : undefined
+            }
+          />
+        </div>
       </section>
 
       {/* Range */}
@@ -431,6 +484,30 @@ function CompactDual({
         <span className="text-[var(--accent)]">{a ?? "—"}</span>
         <span className="mx-1.5 text-[var(--border)]">/</span>
         <span className="text-[var(--cha7et)]">{b ?? "—"}</span>
+      </p>
+      {hint ? (
+        <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p>
+      ) : null}
+    </div>
+  );
+}
+
+function MoneyStat({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
+  return (
+    <div>
+      <p className="text-xs uppercase tracking-wider text-[var(--muted)]">
+        {label}
+      </p>
+      <p className="mt-1 font-[family-name:var(--font-display)] text-2xl font-semibold tabular-nums tracking-tight text-[var(--cha7et)]">
+        {value}
       </p>
       {hint ? (
         <p className="mt-0.5 text-xs text-[var(--muted)]">{hint}</p>
